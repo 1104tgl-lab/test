@@ -194,7 +194,7 @@
     const PauseIcon = () => <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>;
     const RefreshIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>;
 
-    // --- 초기 데이터 셋업 ---
+    // --- 초기 데이터 셋업 (세부 재화 6종) ---
     const INITIAL_DAILY = [
       { id: 1, name: '친구 선물 보내기', done: false, important: true, memo: '' },
       { id: 2, name: '무료 선물 받기', done: false, important: false, memo: '' },
@@ -264,8 +264,6 @@
       const [currencies, setCurrencies] = useState(() => JSON.parse(localStorage.getItem('crk_local_currencies')) || INITIAL_CURRENCIES);
       const [timers, setTimers] = useState(() => JSON.parse(localStorage.getItem('crk_local_timers')) || DEFAULT_TIMERS);
       const [postOfficeClaims, setPostOfficeClaims] = useState(() => JSON.parse(localStorage.getItem('crk_local_claims')) || { date: new Date().toDateString(), claims: [false, false, false] });
-      
-      // 💡 버그 수정: 분수 전용 상태 명칭 일치 완료
       const [fountainTime, setFountainTime] = useState(() => JSON.parse(localStorage.getItem('crk_local_fountain')) || { elapsedSeconds: 0, isRunning: true });
 
       const [quickTimer, setQuickTimer] = useState(() => JSON.parse(localStorage.getItem('crk_local_quick_timer')) || { name: '개인용 퀵 타이머 🎯', totalSeconds: 300, remainingSeconds: 300, isRunning: false });
@@ -295,7 +293,6 @@
           const currentTime = new Date();
           setNow(currentTime);
 
-          // ⛲ 풍요의 분수 대시보드 누적 계산
           setFountainTime(prevFountain => {
             if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
               const updatedSec = prevFountain.elapsedSeconds + 1;
@@ -378,7 +375,7 @@
             lastUpdatedTime: Date.now()
           }, { merge: true });
         } catch (e) {
-          print(e);
+          console.error(e);
         }
       }
 
@@ -426,6 +423,19 @@
         }
       }
       
+      function handleAddTask(type, e) {
+        e.preventDefault();
+        if (type === 'daily' && newDailyName.trim()) { dispatchStateUpdate({ dailyHomework: [...dailyHomework, { id: Date.now(), name: newDailyName.trim(), done: false, important: false, memo: '' }] }); setNewDailyName(''); }
+        if (type === '12h' && newTwelveName.trim()) { dispatchStateUpdate({ twelveHourHomework: [...twelveHourHomework, { id: Date.now(), name: newTwelveName.trim(), done: false, important: false, memo: '' }] }); setNewTwelveName(''); }
+        if (type === 'weekly' && newWeeklyName.trim()) { dispatchStateUpdate({ weeklyHomework: [...weeklyHomework, { id: Date.now(), name: newWeeklyName.trim(), done: false, important: false, memo: '' }] }); setNewWeeklyName(''); }
+      }
+
+      function handleDeleteTask(type, id) {
+        if (type === 'daily') dispatchStateUpdate({ dailyHomework: dailyHomework.filter(i => i.id !== id) });
+        if (type === '12h') dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.filter(i => i.id !== id) });
+        if (type === 'weekly') dispatchStateUpdate({ weeklyHomework: weeklyHomework.filter(i => i.id !== id) });
+      }
+
       function handleAddCustomTimer(e) {
         e.preventDefault();
         if (!customTimerName.trim()) return;
@@ -486,6 +496,17 @@
         dispatchStateUpdate({ timers: next });
         setInlineEditConfig({ ...inlineEditConfig, isOpen: false });
         showToast(inlineEditConfig.mode === 'fixed' ? "⚙️ 고정 마스터 기준 시간이 변경되었습니다." : "⏳ 이번 수령 타이머 진행 시간이 보정되어 바로 작동합니다!");
+      }
+
+      // 💡 버그 수리: 로그에서 유실되었다고 경고한 퀵타이머 네임 저장용 핵심 함수 복구 완료
+      function handleSaveQuickTimerName() {
+        dispatchStateUpdate({ quickTimer: { ...quickTimer, name: quickTimerInputName } });
+        showToast("🎯 이름이 수정되었습니다.");
+      }
+
+      function adjustQuickTimerBySeconds(seconds) {
+        const newRemaining = Math.max(0, quickTimer.remainingSeconds + seconds);
+        dispatchStateUpdate({ quickTimer: { ...quickTimer, remainingSeconds: newRemaining } });
       }
 
       const handleUpdateCurrencyCurrent = (id, val) => {
@@ -552,19 +573,6 @@
         if (type === 'daily') dispatchStateUpdate({ dailyHomework: bulk(dailyHomework) });
         if (type === '12h') dispatchStateUpdate({ twelveHourHomework: bulk(twelveHourHomework) });
         if (type === 'weekly') dispatchStateUpdate({ weeklyHomework: bulk(weeklyHomework) });
-      };
-
-      const handleAddTask = (type, e) => {
-        e.preventDefault();
-        if (type === 'daily' && newDailyName.trim()) { dispatchStateUpdate({ dailyHomework: [...dailyHomework, { id: Date.now(), name: newDailyName.trim(), done: false, important: false, memo: '' }] }); setNewDailyName(''); }
-        if (type === '12h' && newTwelveName.trim()) { dispatchStateUpdate({ twelveHourHomework: [...twelveHourHomework, { id: Date.now(), name: newTwelveName.trim(), done: false, important: false, memo: '' }] }); setNewTwelveName(''); }
-        if (type === 'weekly' && newWeeklyName.trim()) { dispatchStateUpdate({ weeklyHomework: [...weeklyHomework, { id: Date.now(), name: newWeeklyName.trim(), done: false, important: false, memo: '' }] }); setNewWeeklyName(''); }
-      };
-
-      const handleDeleteTask = (type, id) => {
-        if (type === 'daily') dispatchStateUpdate({ dailyHomework: dailyHomework.filter(i => i.id !== id) });
-        if (type === '12h') dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.filter(i => i.id !== id) });
-        if (type === 'weekly') dispatchStateUpdate({ weeklyHomework: weeklyHomework.filter(i => i.id !== id) });
       };
 
       const renderTimerCard = (t, showCheckbox = false) => (
@@ -828,7 +836,7 @@
                       <h3 className="font-black text-stone-900 text-lg">🎯 개인용 퀵 타이머 직접 입력 세팅</h3>
                       <div className="flex flex-wrap gap-2 mt-4">
                         <input type="text" value={quickTimerInputName} onChange={e => setQuickTimerInputName(e.target.value)} className="border rounded-xl px-3 py-2 text-xs font-bold focus:outline-none bg-white" />
-                        <button onClick={handleSaveQuickTimerName} className="bg-stone-900 text-white text-xs px-3 py-2 rounded-xl font-bold">이름수정</button>
+                        <button onClick={handleSaveQuickTimerName} className="bg-stone-900 text-white text-xs px-4 py-2 rounded-xl font-bold">이름수정</button>
                       </div>
                       <div className="flex items-center gap-1 mt-2 text-xs font-bold">
                         <input type="number" value={quickTimerDays} onChange={e => setQuickTimerDays(e.target.value)} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>일</span>
