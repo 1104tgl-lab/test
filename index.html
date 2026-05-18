@@ -249,7 +249,7 @@
       
       const [promptConfig, setPromptConfig] = useState({ isOpen: false, title: '', placeholder: '', value: '', onConfirm: null });
       
-      // 💡 분리 수정 인터페이스 상태 관리 (고정 변경 및 지각 출발 입력폼 분리)
+      // 분리 수정 인터페이스 상태 관리 (고정 변경 및 지각 출발 입력폼 분리)
       const [inlineEditConfig, setInlineEditConfig] = useState({ 
         isOpen: false, 
         id: null, 
@@ -295,7 +295,18 @@
           const currentTime = new Date();
           setNow(currentTime);
 
-          setOriginalFountain(currentTime);
+          setFountainTime(prevFountain => {
+            if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
+              const updatedSec = prevFountain.elapsedSeconds + 1;
+              const nextFountain = { ...prevFountain, elapsedSeconds: updatedSec };
+              if (updatedSec === 28800) {
+                triggerNotification("⛲ 풍요의 분수 최대 누적!", "풍요의 분수가 최대치(8시간)까지 생산되었습니다!");
+              }
+              localStorage.setItem('crk_local_fountain', JSON.stringify(nextFountain));
+              return nextFountain;
+            }
+            return prevFountain;
+          });
 
           setTimers(prevTimers => {
             let changed = false;
@@ -335,21 +346,6 @@
 
         return () => clearInterval(interval);
       }, [cloudStatus]);
-
-      function setOriginalFountain(currentTime) {
-        setFountainTime(prevFountain => {
-          if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
-            const updatedSec = prevFountain.elapsedSeconds + 1;
-            const nextFountain = { ...prevFountain, elapsedSeconds: updatedSec };
-            if (updatedSec === 28800) {
-              triggerNotification("⛲ 풍요의 분수 최대 누적!", "풍요의 분수가 최대치(8시간)까지 생산되었습니다!");
-            }
-            localStorage.setItem('crk_local_fountain', JSON.stringify(nextFountain));
-            return nextFountain;
-          }
-          return prevFountain;
-        });
-      }
 
       const computedCurrencies = currencies.map(c => {
         if (c.current >= c.max || !c.isActive) return { ...c, liveCurrent: c.current, secondsToNext: 0, secondsToFull: 0 };
@@ -400,7 +396,7 @@
       function startTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: true } : t) }); }
       function pauseTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: false } : t) }); }
       
-      // 💡 [중요 변경점]: 완료되어 새로 리셋(출발)할 때는 무조건 원래 고정 지정 시간(totalSeconds)으로 되돌아가게 초기화 설정
+      // 완료되어 새로 리셋(출발)할 때는 원래 고정 지정 시간(totalSeconds)으로 되돌아가게 복구
       function resetTimer(id) { 
         dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) }); 
       }
@@ -420,7 +416,7 @@
           }
           return t;
         });
-        dispatchStateUpdate({ nextTimers, timers: nextTimers });
+        dispatchStateUpdate({ timers: nextTimers });
         showToast(`⛏️ 체크한 광산 ${selectedMineIds.length}곳이 일괄 고정 시간으로 정식 출발했습니다!`);
       }
 
@@ -452,16 +448,13 @@
 
       function handleDeleteTimer(id) { dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) }); }
 
-      // 💡 시간 직접 수정 클릭 시 오픈 설정 모드 세분화 분리
       function openInlineEditModal(t, editMode = 'delay') {
         if (editMode === 'fixed') {
-          // 영구 고정 마스터 기준 시간을 불러옴
           const d = Math.floor(t.totalSeconds / 86400);
           const h = Math.floor((t.totalSeconds % 86400) / 3600);
           const m = Math.floor((t.totalSeconds % 3600) / 60);
           setInlineEditConfig({ isOpen: true, id: t.id, name: t.name, mode: 'fixed', days: String(d), hours: String(h), minutes: String(m) });
         } else {
-          // 이번 한 번만 늦게출발 보정창 오픈 시 현재 남은시간 바인딩
           const rd = Math.floor(t.remainingSeconds / 86400);
           const rh = Math.floor((t.remainingSeconds % 86400) / 3600);
           const rm = Math.floor((t.remainingSeconds % 3600) / 60);
@@ -477,18 +470,15 @@
         }
       }
 
-      // 💡 [수정 완료식 저장 로직 분리]: 한 번 쓰고 버리는 일회성 남은시간 보정 처리
       function saveInlineEditModal() {
         const inputSecs = (parseInt(inlineEditConfig.days) || 0) * 86400 + (parseInt(inlineEditConfig.hours) || 0) * 3600 + (parseInt(inlineEditConfig.minutes) || 0) * 60;
         
         const next = timers.map(t => {
           if (t.id === inlineEditConfig.id) {
             if (inlineEditConfig.mode === 'fixed') {
-              // 1. 고정 기준시간 영구 교체 모드
               if (inputSecs <= 0) return t;
               return { ...t, totalSeconds: inputSecs, remainingSeconds: inputSecs, isRunning: false };
             } else {
-              // 2. 🌟 이번에만 지각출발 남은시간 임시 수정 보정 모드 (완료 후 복구됨)
               const validatedSecs = Math.min(t.totalSeconds, inputSecs);
               return { ...t, remainingSeconds: validatedSecs, isRunning: validatedSecs > 0 };
             }
@@ -580,7 +570,6 @@
         if (type === 'weekly') dispatchStateUpdate({ weeklyHomework: weeklyHomework.filter(i => i.id !== id) });
       };
 
-      // 💡 카드 렌더링 내부에 분리된 독립 버튼 UI 제공 (보정/고정 완전 분리)
       const renderTimerCard = (t, showCheckbox = false) => (
         <div key={t.id} className={`bg-white rounded-2xl border p-4 shadow-sm flex flex-col justify-between transition-all ${showCheckbox && selectedMineIds.includes(t.id) ? 'border-amber-400 bg-amber-50/20' : 'border-stone-200'} ${t.remainingSeconds <= 0 || !t.isRunning ? 'ring-2 ring-rose-500/20' : ''}`}>
           <div className="flex justify-between items-center">
@@ -616,7 +605,6 @@
             </p>
           </div>
           
-          {/* 💡 사용 제어 편의를 위한 2중 개별 분리 버튼 레이아웃 */}
           <div className="flex flex-wrap gap-1 pt-2 border-t text-[9px] font-bold">
             <button type="button" onClick={() => openInlineEditModal(t, 'delay')} className="bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-md px-2 py-1 border border-amber-200/40">⏳ 지각출발 남은시간 수정</button>
             <button type="button" onClick={() => openInlineEditModal(t, 'fixed')} className="bg-stone-50 hover:bg-stone-100 text-stone-500 rounded-md px-1.5 py-1">⚙️ 고정시간 변경</button>
@@ -663,8 +651,6 @@
               </div>
             </div>
           </nav>
-
-          <nav />
 
           <main className="max-w-7xl mx-auto mt-8">
             {/* 1. 대시보드 뷰 */}
@@ -927,7 +913,7 @@
               </div>
             )}
 
-            {/* 3. 재화 설정 변경 패널 */}
+            {/* 3. 재화 설정 패널 */}
             {activeTab === 'currency' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {computedCurrencies.map(c => (
@@ -959,7 +945,7 @@
               </div>
             )}
 
-            {/* 4. 가속 센터 패널 (완료/대기 최상단 자동 정렬) */}
+            {/* 4. 가속 센터 패널 */}
             {activeTab === 'timer' && (
               <div className="space-y-8">
                 {/* 상단 배치: 새 가속 타이머 등록 및 수동 강제 청소 버튼 */}
@@ -1069,7 +1055,7 @@
             </div>
           )}
 
-          {/* 🛠️ [구조 분리 완료]: 이번에만 늦게출발 보정 / 고정 최대시간 변경 분리형 모달 팝업창 */}
+          {/* 분리형 시간 수정 모달 팝업창 */}
           {inlineEditConfig.isOpen && (
             <div className="fixed inset-0 z-[200] bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
@@ -1111,7 +1097,7 @@
     }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(() => <App />);
+    root.render(<App />); // 💡 문법 에러 원천 수정 완료!
   </script>
 </body>
 </html>
