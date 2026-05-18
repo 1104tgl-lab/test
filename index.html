@@ -194,7 +194,7 @@
     const PauseIcon = () => <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>;
     const RefreshIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>;
 
-    // --- 초기 데이터 데이터셋 (세부 재화 6종) ---
+    // --- 초기 데이터 셋업 ---
     const INITIAL_DAILY = [
       { id: 1, name: '친구 선물 보내기', done: false, important: true, memo: '' },
       { id: 2, name: '무료 선물 받기', done: false, important: false, memo: '' },
@@ -248,13 +248,11 @@
       const [toastMessage, setToastMessage] = useState('');
       
       const [promptConfig, setPromptConfig] = useState({ isOpen: false, title: '', placeholder: '', value: '', onConfirm: null });
-      
-      // 분리 수정 인터페이스 상태 관리 (고정 변경 및 지각 출발 입력폼 분리)
       const [inlineEditConfig, setInlineEditConfig] = useState({ 
         isOpen: false, 
         id: null, 
         name: '', 
-        mode: 'delay', // 'delay': 이번만 늦게출발 보정, 'fixed': 영구 고정 기준 수정
+        mode: 'delay', 
         days: '0', hours: '0', minutes: '0'
       });
 
@@ -266,6 +264,8 @@
       const [currencies, setCurrencies] = useState(() => JSON.parse(localStorage.getItem('crk_local_currencies')) || INITIAL_CURRENCIES);
       const [timers, setTimers] = useState(() => JSON.parse(localStorage.getItem('crk_local_timers')) || DEFAULT_TIMERS);
       const [postOfficeClaims, setPostOfficeClaims] = useState(() => JSON.parse(localStorage.getItem('crk_local_claims')) || { date: new Date().toDateString(), claims: [false, false, false] });
+      
+      // 💡 버그 수정: 분수 전용 상태 명칭 일치 완료
       const [fountainTime, setFountainTime] = useState(() => JSON.parse(localStorage.getItem('crk_local_fountain')) || { elapsedSeconds: 0, isRunning: true });
 
       const [quickTimer, setQuickTimer] = useState(() => JSON.parse(localStorage.getItem('crk_local_quick_timer')) || { name: '개인용 퀵 타이머 🎯', totalSeconds: 300, remainingSeconds: 300, isRunning: false });
@@ -295,6 +295,7 @@
           const currentTime = new Date();
           setNow(currentTime);
 
+          // ⛲ 풍요의 분수 대시보드 누적 계산
           setFountainTime(prevFountain => {
             if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
               const updatedSec = prevFountain.elapsedSeconds + 1;
@@ -377,7 +378,7 @@
             lastUpdatedTime: Date.now()
           }, { merge: true });
         } catch (e) {
-          console.error(e);
+          print(e);
         }
       }
 
@@ -395,11 +396,7 @@
 
       function startTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: true } : t) }); }
       function pauseTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: false } : t) }); }
-      
-      // 완료되어 새로 리셋(출발)할 때는 원래 고정 지정 시간(totalSeconds)으로 되돌아가게 복구
-      function resetTimer(id) { 
-        dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) }); 
-      }
+      function resetTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) }); }
       
       function accelerateTimer(id, minutesToSkip) {
         dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - minutesToSkip * 60) } : t) });
@@ -417,7 +414,7 @@
           return t;
         });
         dispatchStateUpdate({ timers: nextTimers });
-        showToast(`⛏️ 체크한 광산 ${selectedMineIds.length}곳이 일괄 고정 시간으로 정식 출발했습니다!`);
+        showToast(`⛏️ 체크한 광산 ${selectedMineIds.length}곳이 일괄 출발했습니다!`);
       }
 
       function handleToggleSelectAllMines() {
@@ -1087,17 +1084,8 @@
       );
     }
 
-    function copyToClipboard(text) {
-      const textField = document.createElement('textarea');
-      textField.innerText = text;
-      document.body.appendChild(textField);
-      textField.select();
-      document.execCommand('copy');
-      textField.remove();
-    }
-
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />); // 💡 문법 에러 원천 수정 완료!
+    root.render(<App />);
   </script>
 </body>
 </html>
