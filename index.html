@@ -65,7 +65,7 @@
       });
     };
 
-    // 완료되었거나 중지된 타이머를 최상단으로 우선 정렬하는 로직
+    // 완료되었거나 정지된 타이머를 최상단으로 우선 정렬하는 로직
     const getSortedTimers = (list) => {
       if (!list) return [];
       return [...list].sort((a, b) => {
@@ -194,7 +194,7 @@
     const PauseIcon = () => <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>;
     const RefreshIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>;
 
-    // --- 초기 데이터 데이터셋 (풍요의 분수 대시보드 구조 분리) ---
+    // --- 초기 데이터 데이터셋 (세부 재화 6종) ---
     const INITIAL_DAILY = [
       { id: 1, name: '친구 선물 보내기', done: false, important: true, memo: '' },
       { id: 2, name: '무료 선물 받기', done: false, important: false, memo: '' },
@@ -249,12 +249,13 @@
       
       const [promptConfig, setPromptConfig] = useState({ isOpen: false, title: '', placeholder: '', value: '', onConfirm: null });
       
+      // 💡 분리 수정 인터페이스 상태 관리 (고정 변경 및 지각 출발 입력폼 분리)
       const [inlineEditConfig, setInlineEditConfig] = useState({ 
         isOpen: false, 
         id: null, 
         name: '', 
-        days: '0', hours: '0', minutes: '0',
-        remDays: '0', remHours: '0', remMinutes: '0' 
+        mode: 'delay', // 'delay': 이번만 늦게출발 보정, 'fixed': 영구 고정 기준 수정
+        days: '0', hours: '0', minutes: '0'
       });
 
       const [selectedMineIds, setSelectedMineIds] = useState([]);
@@ -265,8 +266,6 @@
       const [currencies, setCurrencies] = useState(() => JSON.parse(localStorage.getItem('crk_local_currencies')) || INITIAL_CURRENCIES);
       const [timers, setTimers] = useState(() => JSON.parse(localStorage.getItem('crk_local_timers')) || DEFAULT_TIMERS);
       const [postOfficeClaims, setPostOfficeClaims] = useState(() => JSON.parse(localStorage.getItem('crk_local_claims')) || { date: new Date().toDateString(), claims: [false, false, false] });
-
-      // 풍요의 분수 전용 대시보드 상태 관리 구조 (기본 최대 8시간 제한)
       const [fountainTime, setFountainTime] = useState(() => JSON.parse(localStorage.getItem('crk_local_fountain')) || { elapsedSeconds: 0, isRunning: true });
 
       const [quickTimer, setQuickTimer] = useState(() => JSON.parse(localStorage.getItem('crk_local_quick_timer')) || { name: '개인용 퀵 타이머 🎯', totalSeconds: 300, remainingSeconds: 300, isRunning: false });
@@ -296,19 +295,7 @@
           const currentTime = new Date();
           setNow(currentTime);
 
-          // 풍요의 분수 대시보드 누적 연산 (최대 8시간 = 28800초 경과 체크 및 알림)
-          setFountainTime(prevFountain => {
-            if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
-              const updatedSec = prevFountain.elapsedSeconds + 1;
-              const nextFountain = { ...prevFountain, elapsedSeconds: updatedSec };
-              if (updatedSec === 28800) {
-                triggerNotification("⛲ 풍요의 분수 최대 누적!", "풍요의 분수가 최대치(8시간)까지 생산되었습니다! 지금 수령하세요.");
-              }
-              localStorage.setItem('crk_local_fountain', JSON.stringify(nextFountain));
-              return nextFountain;
-            }
-            return prevFountain;
-          });
+          setOriginalFountain(currentTime);
 
           setTimers(prevTimers => {
             let changed = false;
@@ -348,6 +335,21 @@
 
         return () => clearInterval(interval);
       }, [cloudStatus]);
+
+      function setOriginalFountain(currentTime) {
+        setFountainTime(prevFountain => {
+          if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
+            const updatedSec = prevFountain.elapsedSeconds + 1;
+            const nextFountain = { ...prevFountain, elapsedSeconds: updatedSec };
+            if (updatedSec === 28800) {
+              triggerNotification("⛲ 풍요의 분수 최대 누적!", "풍요의 분수가 최대치(8시간)까지 생산되었습니다!");
+            }
+            localStorage.setItem('crk_local_fountain', JSON.stringify(nextFountain));
+            return nextFountain;
+          }
+          return prevFountain;
+        });
+      }
 
       const computedCurrencies = currencies.map(c => {
         if (c.current >= c.max || !c.isActive) return { ...c, liveCurrent: c.current, secondsToNext: 0, secondsToFull: 0 };
@@ -397,7 +399,11 @@
 
       function startTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: true } : t) }); }
       function pauseTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: false } : t) }); }
-      function resetTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) }); }
+      
+      // 💡 [중요 변경점]: 완료되어 새로 리셋(출발)할 때는 무조건 원래 고정 지정 시간(totalSeconds)으로 되돌아가게 초기화 설정
+      function resetTimer(id) { 
+        dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) }); 
+      }
       
       function accelerateTimer(id, minutesToSkip) {
         dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - minutesToSkip * 60) } : t) });
@@ -414,8 +420,8 @@
           }
           return t;
         });
-        dispatchStateUpdate({ timers: nextTimers });
-        showToast(`⛏️ 체크한 광산 ${selectedMineIds.length}곳이 일괄 출발했습니다!`);
+        dispatchStateUpdate({ nextTimers, timers: nextTimers });
+        showToast(`⛏️ 체크한 광산 ${selectedMineIds.length}곳이 일괄 고정 시간으로 정식 출발했습니다!`);
       }
 
       function handleToggleSelectAllMines() {
@@ -427,23 +433,6 @@
         }
       }
       
-      function adjustQuickTimerBySeconds(seconds) {
-        const newRemaining = Math.max(0, quickTimer.remainingSeconds + seconds);
-        dispatchStateUpdate({ quickTimer: { ...quickTimer, remainingSeconds: newRemaining } });
-      }
-
-      function handleApplyDirectQuickTimer() {
-        const totalSecs = (parseInt(quickTimerDays) || 0) * 86400 + (parseInt(quickTimerHours) || 0) * 3600 + (parseInt(quickTimerMinutes) || 0) * 60 + (parseInt(quickTimerSeconds) || 0);
-        if (totalSecs <= 0) return;
-        dispatchStateUpdate({ quickTimer: { ...quickTimer, totalSeconds: totalSecs, remainingSeconds: totalSecs, isRunning: false } });
-        showToast("🎯 설정이 완료되었습니다.");
-      }
-
-      function handleSaveQuickTimerName() {
-        dispatchStateUpdate({ quickTimer: { ...quickTimer, name: quickTimerInputName } });
-        showToast("🎯 이름이 수정되었습니다.");
-      }
-
       function handleAddCustomTimer(e) {
         e.preventDefault();
         if (!customTimerName.trim()) return;
@@ -463,22 +452,21 @@
 
       function handleDeleteTimer(id) { dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) }); }
 
-      function openInlineEditModal(t) {
-        const d = Math.floor(t.totalSeconds / 86400);
-        const h = Math.floor((t.totalSeconds % 86400) / 3600);
-        const m = Math.floor((t.totalSeconds % 3600) / 60);
-
-        const rd = Math.floor(t.remainingSeconds / 86400);
-        const rh = Math.floor((t.remainingSeconds % 86400) / 3600);
-        const rm = Math.floor((t.remainingSeconds % 3600) / 60);
-
-        setInlineEditConfig({ 
-          isOpen: true, 
-          id: t.id, 
-          name: t.name, 
-          days: String(d), hours: String(h), minutes: String(m),
-          remDays: String(rd), remHours: String(rh), remMinutes: String(rm)
-        });
+      // 💡 시간 직접 수정 클릭 시 오픈 설정 모드 세분화 분리
+      function openInlineEditModal(t, editMode = 'delay') {
+        if (editMode === 'fixed') {
+          // 영구 고정 마스터 기준 시간을 불러옴
+          const d = Math.floor(t.totalSeconds / 86400);
+          const h = Math.floor((t.totalSeconds % 86400) / 3600);
+          const m = Math.floor((t.totalSeconds % 3600) / 60);
+          setInlineEditConfig({ isOpen: true, id: t.id, name: t.name, mode: 'fixed', days: String(d), hours: String(h), minutes: String(m) });
+        } else {
+          // 이번 한 번만 늦게출발 보정창 오픈 시 현재 남은시간 바인딩
+          const rd = Math.floor(t.remainingSeconds / 86400);
+          const rh = Math.floor((t.remainingSeconds % 86400) / 3600);
+          const rm = Math.floor((t.remainingSeconds % 3600) / 60);
+          setInlineEditConfig({ isOpen: true, id: t.id, name: t.name, mode: 'delay', days: String(rd), hours: String(rh), minutes: String(rm) });
+        }
       }
 
       function forceResetTimersStructure() {
@@ -489,31 +477,28 @@
         }
       }
 
+      // 💡 [수정 완료식 저장 로직 분리]: 한 번 쓰고 버리는 일회성 남은시간 보정 처리
       function saveInlineEditModal() {
-        const totalSecs = (parseInt(inlineEditConfig.days) || 0) * 86400 + (parseInt(inlineEditConfig.hours) || 0) * 3600 + (parseInt(inlineEditConfig.minutes) || 0) * 60;
-        const remSecs = (parseInt(inlineEditConfig.remDays) || 0) * 86400 + (parseInt(inlineEditConfig.remHours) || 0) * 3600 + (parseInt(inlineEditConfig.remMinutes) || 0) * 60;
+        const inputSecs = (parseInt(inlineEditConfig.days) || 0) * 86400 + (parseInt(inlineEditConfig.hours) || 0) * 3600 + (parseInt(inlineEditConfig.minutes) || 0) * 60;
         
-        if (totalSecs <= 0) {
-          showToast("⚠️ 고정 기준 시간은 0분 이상이어야 합니다.");
-          return;
-        }
-
         const next = timers.map(t => {
           if (t.id === inlineEditConfig.id) {
-            const finalRemSecs = Math.min(totalSecs, remSecs);
-            return { 
-              ...t, 
-              totalSeconds: totalSecs, 
-              remainingSeconds: finalRemSecs,
-              isRunning: finalRemSecs > 0 ? t.isRunning : false 
-            };
+            if (inlineEditConfig.mode === 'fixed') {
+              // 1. 고정 기준시간 영구 교체 모드
+              if (inputSecs <= 0) return t;
+              return { ...t, totalSeconds: inputSecs, remainingSeconds: inputSecs, isRunning: false };
+            } else {
+              // 2. 🌟 이번에만 지각출발 남은시간 임시 수정 보정 모드 (완료 후 복구됨)
+              const validatedSecs = Math.min(t.totalSeconds, inputSecs);
+              return { ...t, remainingSeconds: validatedSecs, isRunning: validatedSecs > 0 };
+            }
           }
           return t;
         });
 
         dispatchStateUpdate({ timers: next });
         setInlineEditConfig({ ...inlineEditConfig, isOpen: false });
-        showToast("⚙️ 고정시간 및 남은 진행 시간이 정밀 변경되었습니다.");
+        showToast(inlineEditConfig.mode === 'fixed' ? "⚙️ 고정 마스터 기준 시간이 변경되었습니다." : "⏳ 이번 수령 타이머 진행 시간이 보정되어 바로 작동합니다!");
       }
 
       const handleUpdateCurrencyCurrent = (id, val) => {
@@ -595,6 +580,7 @@
         if (type === 'weekly') dispatchStateUpdate({ weeklyHomework: weeklyHomework.filter(i => i.id !== id) });
       };
 
+      // 💡 카드 렌더링 내부에 분리된 독립 버튼 UI 제공 (보정/고정 완전 분리)
       const renderTimerCard = (t, showCheckbox = false) => (
         <div key={t.id} className={`bg-white rounded-2xl border p-4 shadow-sm flex flex-col justify-between transition-all ${showCheckbox && selectedMineIds.includes(t.id) ? 'border-amber-400 bg-amber-50/20' : 'border-stone-200'} ${t.remainingSeconds <= 0 || !t.isRunning ? 'ring-2 ring-rose-500/20' : ''}`}>
           <div className="flex justify-between items-center">
@@ -614,7 +600,6 @@
                 />
               )}
               <span className="font-bold text-xs text-stone-800">{t.name}</span>
-              <button type="button" onClick={() => openInlineEditModal(t)} className="text-[10px] text-[#9B6F43] bg-amber-50 px-2 py-0.5 rounded-md font-black hover:bg-amber-100 transition-colors border border-amber-200/40">시간 직접 수정 ⚙️</button>
             </div>
             <div className="flex gap-1">
               <button onClick={() => t.isRunning ? pauseTimer(t.id) : startTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-600">
@@ -623,27 +608,20 @@
               <button onClick={() => resetTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-400"><RefreshIcon /></button>
             </div>
           </div>
-          <div className="my-2.5">
+          <div className="my-2">
             <p className="font-mono text-sm font-black text-stone-900">
               {formatSeconds(t.remainingSeconds)} 
               {t.remainingSeconds <= 0 && <span className="ml-1.5 inline-block text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-black animate-pulse">수령 필요!</span>}
-              <span className="text-[10px] text-stone-400 font-normal block mt-0.5">최대 기준: {formatSeconds(t.totalSeconds)}</span>
+              <span className="text-[10px] text-stone-400 font-normal block mt-0.5">지정 고정시간: {formatSeconds(t.totalSeconds)}</span>
             </p>
           </div>
-          <div className="flex gap-1 pt-2 border-t text-[9px] font-bold overflow-x-auto">
-            <button type="button" onClick={() => accelerateTimer(t.id, 10)} className="bg-stone-50 border rounded-md px-1.5 py-0.5 shrink-0">-10분</button>
-            <button type="button" onClick={() => accelerateTimer(t.id, 30)} className="bg-stone-50 border rounded-md px-1.5 py-0.5 shrink-0">-30분</button>
-            <button type="button" onClick={() => accelerateTimer(t.id, 60)} className="bg-stone-50 border rounded-md px-1.5 py-0.5 shrink-0">-1시간</button>
-            <button type="button" onClick={() => {
-              setPromptConfig({
-                isOpen: true,
-                title: `⏱️ [${t.name}] 직접 시간 단축 처리`,
-                placeholder: "건너뛸 시간 입력 (분 단위 숫자)",
-                value: "10",
-                onConfirm: (val) => accelerateTimer(t.id, parseInt(val) || 0)
-              });
-            }} className="bg-stone-900 text-white rounded-md px-1.5 py-0.5 shrink-0">시간 단축</button>
-            {!t.preset && <button type="button" onClick={() => handleDeleteTimer(t.id)} className="bg-rose-50 text-rose-600 border border-rose-200 rounded-md px-1.5 py-0.5 ml-auto shrink-0">삭제</button>}
+          
+          {/* 💡 사용 제어 편의를 위한 2중 개별 분리 버튼 레이아웃 */}
+          <div className="flex flex-wrap gap-1 pt-2 border-t text-[9px] font-bold">
+            <button type="button" onClick={() => openInlineEditModal(t, 'delay')} className="bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-md px-2 py-1 border border-amber-200/40">⏳ 지각출발 남은시간 수정</button>
+            <button type="button" onClick={() => openInlineEditModal(t, 'fixed')} className="bg-stone-50 hover:bg-stone-100 text-stone-500 rounded-md px-1.5 py-1">⚙️ 고정시간 변경</button>
+            <button type="button" onClick={() => accelerateTimer(t.id, 60)} className="bg-stone-50 border rounded-md px-1.5 py-1 ml-auto shrink-0">-1시간</button>
+            {!t.preset && <button type="button" onClick={() => handleDeleteTimer(t.id)} className="bg-rose-50 text-rose-600 border border-rose-200 rounded-md px-1.5 py-1 shrink-0">삭제</button>}
           </div>
         </div>
       );
@@ -686,12 +664,14 @@
             </div>
           </nav>
 
+          <nav />
+
           <main className="max-w-7xl mx-auto mt-8">
             {/* 1. 대시보드 뷰 */}
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  {/* 광장 우체국 관제소 */}
+                  {/* 우체국 관제 */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 tracking-widest uppercase block">📮 POST OFFICE MONITOR</span>
@@ -726,7 +706,7 @@
                     </div>
                   </div>
 
-                  {/* ⛲ 풍요의 분수 대시보드 컴포넌트 (이전 완료 및 시간 누적 감지) */}
+                  {/* ⛲ 풍요의 분수 대시보드 모듈 */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-amber-200 bg-amber-50/10 shadow-sm flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-center">
@@ -765,7 +745,7 @@
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 tracking-widest uppercase block">📊 PROGRESS PANEL</span>
-                      <div className="mt-4 flex items-baseline gap-1">
+                      <div className="mt-6 flex items-baseline gap-1">
                         <span className="text-4xl font-black text-stone-900 tracking-tighter">{totalProgressPercent}%</span>
                         <span className="text-[11px] text-stone-400 font-bold">({totalCompletedTasks}/{totalTasks} 완료)</span>
                       </div>
@@ -979,7 +959,7 @@
               </div>
             )}
 
-            {/* 4. 가속 센터 패널 (완료/대기 상태가 맨 앞으로 자동 정렬 적용) */}
+            {/* 4. 가속 센터 패널 (완료/대기 최상단 자동 정렬) */}
             {activeTab === 'timer' && (
               <div className="space-y-8">
                 {/* 상단 배치: 새 가속 타이머 등록 및 수동 강제 청소 버튼 */}
@@ -1010,7 +990,7 @@
                   </div>
                 </div>
 
-                {/* 🚂 분류 1: 곰젤리 열차 전용 섹션 (완료 우선 정렬) */}
+                {/* 🚂 분류 1: 곰젤리 열차 전용 섹션 */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🚂 곰젤리 열차 모니터링 <span className="text-[10px] text-[#9B6F43] font-normal">(완료/대기 타이머가 자동 맨 앞으로 고정)</span></h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1018,7 +998,7 @@
                   </div>
                 </div>
 
-                {/* ⛏️ 분류 2: 광산 채굴 전용 섹션 (완료 우선 정렬) */}
+                {/* ⛏️ 분류 2: 광산 채굴 전용 섹션 */}
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-stone-900 to-stone-800 text-white p-4 rounded-2xl shadow-md">
                     <div>
@@ -1050,7 +1030,7 @@
                   </div>
                 </div>
 
-                {/* 📦 분류 3: 왕국 기본 고정 콘텐츠 섹션 (완료 우선 정렬) */}
+                {/* 📦 분류 3: 왕국 기본 고정 콘텐츠 섹션 */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🏰 왕국 주요 기본 콘텐츠 초시계</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1089,39 +1069,30 @@
             </div>
           )}
 
-          {/* 🛠️ 업그레이드 통합 팝업 모달: 고정 기준시간 수정 + 현재 남은 시간 자체 정밀 수정 */}
+          {/* 🛠️ [구조 분리 완료]: 이번에만 늦게출발 보정 / 고정 최대시간 변경 분리형 모달 팝업창 */}
           {inlineEditConfig.isOpen && (
             <div className="fixed inset-0 z-[200] bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5">
+              <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
                 <div>
-                  <h4 className="font-black text-stone-900 text-base">⚙️ [{inlineEditConfig.name}] 시간 정밀 설정</h4>
-                  <p className="text-xs text-stone-400 mt-1">고정 한계 수령 시간과 현재 진행 상황을 직접 컨트롤합니다.</p>
+                  <h4 className="font-black text-stone-900 text-base">
+                    {inlineEditConfig.mode === 'fixed' ? '⚙️ 고정 마스터 기준시간 변경' : '⏳ 이번에만 지각출발 남은시간 보정'}
+                  </h4>
+                  <p className="text-xs text-stone-400 mt-1">
+                    {inlineEditConfig.mode === 'fixed' 
+                      ? '해당 콘텐츠의 영구적인 수령 마스터 고정 시간을 변경합니다.' 
+                      : '출발 세팅이 늦어져 게임 창에 남은 실시간 정보를 직접 동기화 입력합니다.'}
+                  </p>
                 </div>
                 
-                {/* 섹션 1: 고정 기준 시간 설정 */}
-                <div className="space-y-2">
-                  <span className="text-xs font-black text-stone-700 block">📌 1. 고정 최대 기준 시간</span>
-                  <div className="grid grid-cols-3 gap-2 text-xs font-bold">
-                    <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400">일</span><input type="number" value={inlineEditConfig.days} onChange={e => setInlineEditConfig({ ...inlineEditConfig, days: e.target.value })} className="border p-2 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
-                    <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400">시간</span><input type="number" value={inlineEditConfig.hours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, hours: e.target.value })} className="border p-2 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
-                    <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400">분</span><input type="number" value={inlineEditConfig.minutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, minutes: e.target.value })} className="border p-2 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
-                  </div>
-                </div>
-
-                {/* 섹션 2: 현재 남은 시간 자체 정밀 수정 */}
-                <div className="space-y-2 border-t pt-3">
-                  <span className="text-xs font-black text-amber-800 block">⏳ 2. 현재 남은 수령 시간 (자체 정밀 수정)</span>
-                  <p className="text-[11px] text-stone-400">출발 세팅이 늦어졌을 때 게임 화면에 표시된 남은 시간을 똑같이 적어주세요.</p>
-                  <div className="grid grid-cols-3 gap-2 text-xs font-bold">
-                    <div className="flex flex-col gap-1"><span className="text-[10px] text-amber-600">일</span><input type="number" value={inlineEditConfig.remDays} onChange={e => setInlineEditConfig({ ...inlineEditConfig, remDays: e.target.value })} className="border p-2 rounded-xl bg-amber-50/30 focus:outline-none text-center font-mono text-amber-900" /></div>
-                    <div className="flex flex-col gap-1"><span className="text-[10px] text-amber-600">시간</span><input type="number" value={inlineEditConfig.remHours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, remHours: e.target.value })} className="border p-2 rounded-xl bg-amber-50/30 focus:outline-none text-center font-mono text-amber-900" /></div>
-                    <div className="flex flex-col gap-1"><span className="text-[10px] text-amber-600">분</span><input type="number" value={inlineEditConfig.remMinutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, remMinutes: e.target.value })} className="border p-2 rounded-xl bg-amber-50/30 focus:outline-none text-center font-mono text-amber-900" /></div>
-                  </div>
+                <div className="grid grid-cols-3 gap-2 text-xs font-bold">
+                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">일</span><input type="number" value={inlineEditConfig.days} onChange={e => setInlineEditConfig({ ...inlineEditConfig, days: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
+                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">시간</span><input type="number" value={inlineEditConfig.hours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, hours: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
+                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">분</span><input type="number" value={inlineEditConfig.minutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, minutes: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
                 </div>
 
                 <div className="flex gap-2 justify-end pt-2 border-t">
                   <button onClick={() => setInlineEditConfig({ ...inlineEditConfig, isOpen: false })} className="px-4 py-2 border rounded-xl text-xs font-bold hover:bg-stone-50">취소</button>
-                  <button onClick={saveInlineEditModal} className="px-4 py-2 bg-stone-900 text-white rounded-xl text-xs font-bold shadow-md">설정값 일괄 적용 저장</button>
+                  <button onClick={saveInlineEditModal} className="px-4 py-2 bg-stone-900 text-white rounded-xl text-xs font-bold shadow-md">저장 및 적용</button>
                 </div>
               </div>
             </div>
@@ -1140,7 +1111,7 @@
     }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    root.render(() => <App />);
   </script>
 </body>
 </html>
