@@ -65,6 +65,18 @@
       });
     };
 
+    // 완료되었거나 중지된 타이머를 최상단으로 우선 정렬하는 로직
+    const getSortedTimers = (list) => {
+      if (!list) return [];
+      return [...list].sort((a, b) => {
+        const aDoneOrStopped = a.remainingSeconds <= 0 || !a.isRunning;
+        const bDoneOrStopped = b.remainingSeconds <= 0 || !b.isRunning;
+        if (aDoneOrStopped && !bDoneOrStopped) return -1;
+        if (!aDoneOrStopped && bDoneOrStopped) return 1;
+        return 0;
+      });
+    };
+
     const formatSeconds = (totalSec) => {
       if (totalSec <= 0) return '완료!';
       const days = Math.floor(totalSec / 86400);
@@ -72,6 +84,13 @@
       const mins = Math.floor((totalSec % 3600) / 60);
       const secs = totalSec % 60;
       return `${days > 0 ? days + '일 ' : ''}${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const formatElapsedSeconds = (totalSec) => {
+      const hrs = Math.floor(totalSec / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+      return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
     const getCountdownToMidnight = (now) => {
@@ -175,7 +194,7 @@
     const PauseIcon = () => <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>;
     const RefreshIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>;
 
-    // --- 초기 데이터 데이터셋 (세부 재화 6종) ---
+    // --- 초기 데이터 데이터셋 (풍요의 분수 대시보드 구조 분리) ---
     const INITIAL_DAILY = [
       { id: 1, name: '친구 선물 보내기', done: false, important: true, memo: '' },
       { id: 2, name: '무료 선물 받기', done: false, important: false, memo: '' },
@@ -205,7 +224,6 @@
     ];
     
     const DEFAULT_TIMERS = [
-      { id: 'fountain', name: '풍요의 분수', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
       { id: 'dock', name: '선착장 보상', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
       { id: 'train_1', name: '곰젤리 열차 1번', totalSeconds: 4 * 3600, remainingSeconds: 4 * 3600, isRunning: false, preset: true },
       { id: 'train_2', name: '곰젤리 열차 2번', totalSeconds: 6 * 3600, remainingSeconds: 6 * 3600, isRunning: false, preset: true },
@@ -225,12 +243,19 @@
       const [activeTab, setActiveTab] = useState('dashboard');
       const [now, setNow] = useState(new Date());
       const [user, setUser] = useState(null);
-      const [syncCode, setSyncCode] = useState(() => localStorage.getItem('crk_sync_code_v3') || generateSyncCode());
+      const [syncCode, setSyncCode] = useState(() => localStorage.getItem('crk_sync_code_v4') || generateSyncCode());
       const [cloudStatus, setCloudStatus] = useState('authenticating');
       const [toastMessage, setToastMessage] = useState('');
       
       const [promptConfig, setPromptConfig] = useState({ isOpen: false, title: '', placeholder: '', value: '', onConfirm: null });
-      const [inlineEditConfig, setInlineEditConfig] = useState({ isOpen: false, id: null, name: '', days: '0', hours: '0', minutes: '0' });
+      
+      const [inlineEditConfig, setInlineEditConfig] = useState({ 
+        isOpen: false, 
+        id: null, 
+        name: '', 
+        days: '0', hours: '0', minutes: '0',
+        remDays: '0', remHours: '0', remMinutes: '0' 
+      });
 
       const [selectedMineIds, setSelectedMineIds] = useState([]);
 
@@ -240,6 +265,9 @@
       const [currencies, setCurrencies] = useState(() => JSON.parse(localStorage.getItem('crk_local_currencies')) || INITIAL_CURRENCIES);
       const [timers, setTimers] = useState(() => JSON.parse(localStorage.getItem('crk_local_timers')) || DEFAULT_TIMERS);
       const [postOfficeClaims, setPostOfficeClaims] = useState(() => JSON.parse(localStorage.getItem('crk_local_claims')) || { date: new Date().toDateString(), claims: [false, false, false] });
+
+      // 풍요의 분수 전용 대시보드 상태 관리 구조 (기본 최대 8시간 제한)
+      const [fountainTime, setFountainTime] = useState(() => JSON.parse(localStorage.getItem('crk_local_fountain')) || { elapsedSeconds: 0, isRunning: true });
 
       const [quickTimer, setQuickTimer] = useState(() => JSON.parse(localStorage.getItem('crk_local_quick_timer')) || { name: '개인용 퀵 타이머 🎯', totalSeconds: 300, remainingSeconds: 300, isRunning: false });
       const [quickTimerInputName, setQuickTimerInputName] = useState('개인용 퀵 타이머 🎯');
@@ -267,6 +295,20 @@
         const interval = setInterval(() => {
           const currentTime = new Date();
           setNow(currentTime);
+
+          // 풍요의 분수 대시보드 누적 연산 (최대 8시간 = 28800초 경과 체크 및 알림)
+          setFountainTime(prevFountain => {
+            if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
+              const updatedSec = prevFountain.elapsedSeconds + 1;
+              const nextFountain = { ...prevFountain, elapsedSeconds: updatedSec };
+              if (updatedSec === 28800) {
+                triggerNotification("⛲ 풍요의 분수 최대 누적!", "풍요의 분수가 최대치(8시간)까지 생산되었습니다! 지금 수령하세요.");
+              }
+              localStorage.setItem('crk_local_fountain', JSON.stringify(nextFountain));
+              return nextFountain;
+            }
+            return prevFountain;
+          });
 
           setTimers(prevTimers => {
             let changed = false;
@@ -332,6 +374,7 @@
             currencies: newData.currencies ?? currencies,
             timers: newData.timers ?? timers,
             postOfficeClaims: newData.postOfficeClaims ?? postOfficeClaims,
+            fountainTime: newData.fountainTime ?? fountainTime,
             quickTimer: newData.quickTimer ?? quickTimer,
             lastUpdatedTime: Date.now()
           }, { merge: true });
@@ -347,6 +390,7 @@
         if (updates.currencies !== undefined) { setCurrencies(updates.currencies); localStorage.setItem('crk_local_currencies', JSON.stringify(updates.currencies)); }
         if (updates.timers !== undefined) { setTimers(updates.timers); localStorage.setItem('crk_local_timers', JSON.stringify(updates.timers)); }
         if (updates.postOfficeClaims !== undefined) { setPostOfficeClaims(updates.postOfficeClaims); localStorage.setItem('crk_local_claims', JSON.stringify(updates.postOfficeClaims)); }
+        if (updates.fountainTime !== undefined) { setFountainTime(updates.fountainTime); localStorage.setItem('crk_local_fountain', JSON.stringify(updates.fountainTime)); }
         if (updates.quickTimer !== undefined) { setQuickTimer(updates.quickTimer); localStorage.setItem('crk_local_quick_timer', JSON.stringify(updates.quickTimer)); }
         saveToCloud(updates);
       }
@@ -423,25 +467,53 @@
         const d = Math.floor(t.totalSeconds / 86400);
         const h = Math.floor((t.totalSeconds % 86400) / 3600);
         const m = Math.floor((t.totalSeconds % 3600) / 60);
-        setInlineEditConfig({ isOpen: true, id: t.id, name: t.name, days: String(d), hours: String(h), minutes: String(m) });
+
+        const rd = Math.floor(t.remainingSeconds / 86400);
+        const rh = Math.floor((t.remainingSeconds % 86400) / 3600);
+        const rm = Math.floor((t.remainingSeconds % 3600) / 60);
+
+        setInlineEditConfig({ 
+          isOpen: true, 
+          id: t.id, 
+          name: t.name, 
+          days: String(d), hours: String(h), minutes: String(m),
+          remDays: String(rd), remHours: String(rh), remMinutes: String(rm)
+        });
       }
 
-      // 💡 웹 브라우저 강제 데이터 청소/초기화 전용 버튼 함수 구현
       function forceResetTimersStructure() {
-        if(confirm("⚠️ 가속 센터의 타이머 구조를 최신 스펙(기차 3개, 광산 6개)으로 강제 리셋하시겠습니까?\n(기존 타이머 진행 시간만 리셋되며 숙제 내역이나 재화 설정은 안전하게 유지됩니다.)")) {
+        if(confirm("⚠️ 가속 센터의 타이머 구조를 완전히 초기화하시겠습니까?\n(타이머 진행 상태만 기본값으로 세팅되며 숙제나 재화 데이터는 그대로 안전하게 유지됩니다.)")) {
           dispatchStateUpdate({ timers: DEFAULT_TIMERS });
           setSelectedMineIds([]);
-          showToast("♻️ 가속 센터 타이머 구조가 완전히 리셋되었습니다!");
+          showToast("♻️ 가속 센터 구조가 강제 초기화되었습니다!");
         }
       }
 
       function saveInlineEditModal() {
         const totalSecs = (parseInt(inlineEditConfig.days) || 0) * 86400 + (parseInt(inlineEditConfig.hours) || 0) * 3600 + (parseInt(inlineEditConfig.minutes) || 0) * 60;
-        if (totalSecs <= 0) return;
-        const next = timers.map(t => (t.id === inlineEditConfig.id ? { ...t, totalSeconds: totalSecs, remainingSeconds: totalSecs, isRunning: false } : t));
+        const remSecs = (parseInt(inlineEditConfig.remDays) || 0) * 86400 + (parseInt(inlineEditConfig.remHours) || 0) * 3600 + (parseInt(inlineEditConfig.remMinutes) || 0) * 60;
+        
+        if (totalSecs <= 0) {
+          showToast("⚠️ 고정 기준 시간은 0분 이상이어야 합니다.");
+          return;
+        }
+
+        const next = timers.map(t => {
+          if (t.id === inlineEditConfig.id) {
+            const finalRemSecs = Math.min(totalSecs, remSecs);
+            return { 
+              ...t, 
+              totalSeconds: totalSecs, 
+              remainingSeconds: finalRemSecs,
+              isRunning: finalRemSecs > 0 ? t.isRunning : false 
+            };
+          }
+          return t;
+        });
+
         dispatchStateUpdate({ timers: next });
         setInlineEditConfig({ ...inlineEditConfig, isOpen: false });
-        showToast("⚙️ 고정 기준 시간이 수정되었습니다.");
+        showToast("⚙️ 고정시간 및 남은 진행 시간이 정밀 변경되었습니다.");
       }
 
       const handleUpdateCurrencyCurrent = (id, val) => {
@@ -460,7 +532,7 @@
       useEffect(() => {
         signInAnonymously(auth).catch(() => setCloudStatus('local'));
         onAuthStateChanged(auth, (usr) => { if (usr) setUser(usr); });
-        localStorage.setItem('crk_sync_code_v3', syncCode);
+        localStorage.setItem('crk_sync_code_v4', syncCode);
       }, [syncCode]);
 
       useEffect(() => {
@@ -469,14 +541,8 @@
         const unsubscribe = onSnapshot(docRef, (snapshot) => {
           if (snapshot.exists()) {
             const data = snapshot.data();
-            
-            // 💡 [핵심 안전장치]: 서버에서 불러온 타이머 데이터에 3번 열차나 6번 광산이 없으면 자동으로 리셋을 가동시킵니다.
             let loadedTimers = data.timers || [];
-            const hasTrain3 = loadedTimers.some(t => t.id === 'train_3');
-            const hasMine6 = loadedTimers.some(t => t.id === 'mine_harvest_6');
-            
-            if (loadedTimers.length > 0 && (!hasTrain3 || !hasMine6)) {
-              // 옛날 구조인 방을 감지하면 클라우드 데이터를 새 구조 기본값으로 자동 최신화
+            if (loadedTimers.length > 0 && !loadedTimers.some(t => t.id === 'mine_harvest_6')) {
               loadedTimers = DEFAULT_TIMERS;
               const docRefRaw = doc(db, 'artifacts', appId, 'public', 'data', 'kingdoms', syncCode);
               setDoc(docRefRaw, { timers: DEFAULT_TIMERS }, { merge: true });
@@ -488,12 +554,13 @@
             if (data.currencies) setCurrencies(data.currencies);
             if (data.quickTimer) setQuickTimer(data.quickTimer);
             if (data.postOfficeClaims) setPostOfficeClaims(data.postOfficeClaims);
+            if (data.fountainTime) setFountainTime(data.fountainTime);
             
             setTimers(loadedTimers);
             localStorage.setItem('crk_local_timers', JSON.stringify(loadedTimers));
             setCloudStatus('connected');
           } else {
-            saveToCloud({ dailyHomework, twelveHourHomework, weeklyHomework, currencies, timers, postOfficeClaims, quickTimer });
+            saveToCloud({ dailyHomework, twelveHourHomework, weeklyHomework, currencies, timers, postOfficeClaims, fountainTime, quickTimer });
             setCloudStatus('connected');
           }
         }, () => setCloudStatus('api-disabled'));
@@ -529,7 +596,7 @@
       };
 
       const renderTimerCard = (t, showCheckbox = false) => (
-        <div key={t.id} className={`bg-white rounded-2xl border p-4 shadow-sm flex flex-col justify-between transition-all ${showCheckbox && selectedMineIds.includes(t.id) ? 'border-amber-400 bg-amber-50/20' : 'border-stone-200'}`}>
+        <div key={t.id} className={`bg-white rounded-2xl border p-4 shadow-sm flex flex-col justify-between transition-all ${showCheckbox && selectedMineIds.includes(t.id) ? 'border-amber-400 bg-amber-50/20' : 'border-stone-200'} ${t.remainingSeconds <= 0 || !t.isRunning ? 'ring-2 ring-rose-500/20' : ''}`}>
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               {showCheckbox && (
@@ -547,7 +614,7 @@
                 />
               )}
               <span className="font-bold text-xs text-stone-800">{t.name}</span>
-              <button type="button" onClick={() => openInlineEditModal(t)} className="text-[9px] text-[#9B6F43] bg-amber-50 px-1.5 py-0.5 rounded font-black hover:bg-amber-100 transition-colors">고정시간 수정</button>
+              <button type="button" onClick={() => openInlineEditModal(t)} className="text-[10px] text-[#9B6F43] bg-amber-50 px-2 py-0.5 rounded-md font-black hover:bg-amber-100 transition-colors border border-amber-200/40">시간 직접 수정 ⚙️</button>
             </div>
             <div className="flex gap-1">
               <button onClick={() => t.isRunning ? pauseTimer(t.id) : startTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-600">
@@ -557,7 +624,11 @@
             </div>
           </div>
           <div className="my-2.5">
-            <p className="font-mono text-sm font-black text-stone-900">{formatSeconds(t.remainingSeconds)} <span className="text-[10px] text-stone-400 font-normal">/ {formatSeconds(t.totalSeconds)}</span></p>
+            <p className="font-mono text-sm font-black text-stone-900">
+              {formatSeconds(t.remainingSeconds)} 
+              {t.remainingSeconds <= 0 && <span className="ml-1.5 inline-block text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-black animate-pulse">수령 필요!</span>}
+              <span className="text-[10px] text-stone-400 font-normal block mt-0.5">최대 기준: {formatSeconds(t.totalSeconds)}</span>
+            </p>
           </div>
           <div className="flex gap-1 pt-2 border-t text-[9px] font-bold overflow-x-auto">
             <button type="button" onClick={() => accelerateTimer(t.id, 10)} className="bg-stone-50 border rounded-md px-1.5 py-0.5 shrink-0">-10분</button>
@@ -571,7 +642,7 @@
                 value: "10",
                 onConfirm: (val) => accelerateTimer(t.id, parseInt(val) || 0)
               });
-            }} className="bg-stone-900 text-white rounded-md px-1.5 py-0.5 shrink-0">직접 입력</button>
+            }} className="bg-stone-900 text-white rounded-md px-1.5 py-0.5 shrink-0">시간 단축</button>
             {!t.preset && <button type="button" onClick={() => handleDeleteTimer(t.id)} className="bg-rose-50 text-rose-600 border border-rose-200 rounded-md px-1.5 py-0.5 ml-auto shrink-0">삭제</button>}
           </div>
         </div>
@@ -620,23 +691,23 @@
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  {/* 광장 우체국 */}
-                  <div className="lg:col-span-7 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
+                  {/* 광장 우체국 관제소 */}
+                  <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 tracking-widest uppercase block">📮 POST OFFICE MONITOR</span>
-                      <h2 className="text-xl font-bold mt-4 text-stone-800">{postOfficeStatus.text}</h2>
-                      <p className="text-xs text-stone-400 mt-1">창구 개방 시간: {postOfficeStatus.currentWindow}</p>
-                      <div className="bg-[#FAF9F6] p-4 rounded-2xl border border-stone-200/50 mt-4">
-                        <div className="flex justify-between items-center text-xs font-bold text-stone-700">
-                          <span>개방 진행상황</span>
+                      <h2 className="text-base font-bold mt-3 text-stone-800">{postOfficeStatus.text}</h2>
+                      <p className="text-[11px] text-stone-400 mt-0.5">창구 개방 시간: {postOfficeStatus.currentWindow}</p>
+                      <div className="bg-[#FAF9F6] p-3 rounded-xl border border-stone-200/50 mt-3">
+                        <div className="flex justify-between items-center text-[11px] font-bold text-stone-700">
+                          <span>진행 상태</span>
                           <span className="text-amber-700">{postOfficeStatus.subText}</span>
                         </div>
-                        <div className="w-full bg-stone-200/50 h-2 rounded-full mt-2 overflow-hidden">
+                        <div className="w-full bg-stone-200/50 h-1.5 rounded-full mt-1.5 overflow-hidden">
                           <div className={`h-full transition-all duration-1000 ${postOfficeStatus.isOpen ? 'bg-emerald-500' : 'bg-amber-600'}`} style={{ width: postOfficeStatus.isOpen ? '100%' : '50%' }} />
                         </div>
                       </div>
                     </div>
-                    <div className="mt-6 pt-4 border-t border-stone-100 grid grid-cols-3 gap-2">
+                    <div className="mt-4 pt-3 border-t border-stone-100 grid grid-cols-3 gap-1.5">
                       {[0, 1, 2].map(idx => (
                         <button
                           key={idx}
@@ -645,39 +716,75 @@
                             claims[idx] = !claims[idx];
                             dispatchStateUpdate({ postOfficeClaims: { ...postOfficeClaims, claims } });
                           }}
-                          className={`py-3 rounded-xl text-xs font-bold transition-all border ${
-                            postOfficeClaims.claims[idx] ? 'bg-stone-900 border-stone-900 text-white shadow-sm' : 'bg-[#FAF9F6] border-stone-200 text-stone-600 hover:bg-stone-100/60'
+                          className={`py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                            postOfficeClaims.claims[idx] ? 'bg-stone-900 border-stone-900 text-white' : 'bg-[#FAF9F6] border-stone-200 text-stone-600 hover:bg-stone-100/60'
                           }`}
                         >
-                          {idx + 1}회 수령 {postOfficeClaims.claims[idx] ? '✓' : '대기'}
+                          {idx + 1}회 {postOfficeClaims.claims[idx] ? '✓' : '대기'}
                         </button>
                       ))}
                     </div>
                   </div>
 
+                  {/* ⛲ 풍요의 분수 대시보드 컴포넌트 (이전 완료 및 시간 누적 감지) */}
+                  <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-amber-200 bg-amber-50/10 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-amber-700 tracking-widest uppercase block"> Fountain of Plenty</span>
+                        <span className="text-[9px] bg-amber-200/60 text-amber-900 font-extrabold px-1.5 py-0.5 rounded">최대 8시간 알림</span>
+                      </div>
+                      <h2 className="text-xl font-black mt-3 text-stone-900">⛲ 풍요의 분수 생산 모니터</h2>
+                      
+                      <div className="my-4 bg-white p-3.5 rounded-2xl border border-amber-100 shadow-inner">
+                        <p className="text-[11px] font-bold text-stone-500">마지막 수령 후 경과 시간:</p>
+                        <p className="font-mono text-2xl font-black text-amber-900 mt-1">
+                          {formatElapsedSeconds(fountainTime.elapsedSeconds)}
+                          {fountainTime.elapsedSeconds >= 28800 && (
+                            <span className="ml-2 text-xs bg-rose-600 text-white px-2 py-0.5 rounded-md align-middle animate-pulse font-sans">MAX! 수령</span>
+                          )}
+                        </p>
+                        <div className="w-full bg-stone-100 h-2 rounded-full mt-3 overflow-hidden">
+                          <div className="bg-amber-500 h-full transition-all duration-1000" style={{ width: `${Math.min(100, (fountainTime.elapsedSeconds / 28800) * 100)}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        dispatchStateUpdate({ fountainTime: { elapsedSeconds: 0, isRunning: true } });
+                        showToast("⛲ 분수 보상을 수령하고 타이머를 리셋했습니다!");
+                      }} 
+                      className="w-full bg-amber-700 hover:bg-amber-800 text-white text-xs font-black py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1"
+                    >
+                      <RefreshIcon /> 보상 수령 완료 (타이머 리셋)
+                    </button>
+                  </div>
+
                   {/* 프로그레스 패널 */}
-                  <div className="lg:col-span-5 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
+                  <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 tracking-widest uppercase block">📊 PROGRESS PANEL</span>
-                      <div className="mt-6 flex items-baseline gap-2">
-                        <span className="text-5xl font-black text-stone-900 tracking-tighter">{totalProgressPercent}%</span>
-                        <span className="text-xs text-stone-400 font-bold">({totalCompletedTasks}/{totalTasks} 완료)</span>
+                      <div className="mt-4 flex items-baseline gap-1">
+                        <span className="text-4xl font-black text-stone-900 tracking-tighter">{totalProgressPercent}%</span>
+                        <span className="text-[11px] text-stone-400 font-bold">({totalCompletedTasks}/{totalTasks} 완료)</span>
                       </div>
-                      <div className="w-full bg-stone-100 h-2 rounded-full mt-4 overflow-hidden">
+                      <div className="w-full bg-stone-100 h-1.5 rounded-full mt-3 overflow-hidden">
                         <div className="bg-[#9B6F43] h-full transition-all duration-500" style={{ width: `${totalProgressPercent}%` }} />
                       </div>
                     </div>
-                    <div className="pt-4 border-t border-stone-100 grid grid-cols-3 gap-2 text-center text-xs">
-                      <div className="bg-[#FAF9F6] p-3 rounded-xl border border-stone-100">
+                    <div className="pt-3 border-t border-stone-100 grid grid-cols-3 gap-1.5 text-center text-[11px]">
+                      <div className="bg-[#FAF9F6] p-2 rounded-xl border">
                         <div className="text-stone-400 font-bold">일일</div>
-                        <div className="text-sm font-black text-stone-800 mt-1">{dailyDoneCount}/{dailyHomework.length}</div>
+                        <div className="text-xs font-black text-stone-800 mt-0.5">{dailyDoneCount}/{dailyHomework.length}</div>
                       </div>
-                      <div className="bg-[#FAF9F6] p-3 rounded-xl border border-stone-100">
-                        <div className="text-sm font-black text-stone-800 mt-1">{twelveHourDoneCount}/{twelveHourHomework.length}</div>
+                      <div className="bg-[#FAF9F6] p-2 rounded-xl border">
+                        <div className="text-stone-400 font-bold">12시간</div>
+                        <div className="text-xs font-black text-stone-800 mt-0.5">{twelveHourDoneCount}/{twelveHourHomework.length}</div>
                       </div>
-                      <div className="bg-[#FAF9F6] p-3 rounded-xl border border-stone-100">
+                      <div className="bg-[#FAF9F6] p-2 rounded-xl border">
                         <div className="text-stone-400 font-bold">주간</div>
-                        <div className="text-sm font-black text-stone-800 mt-1">{weeklyDoneCount}/{weeklyHomework.length}</div>
+                        <div className="text-xs font-black text-stone-800 mt-0.5">{weeklyDoneCount}/{weeklyHomework.length}</div>
                       </div>
                     </div>
                   </div>
@@ -742,7 +849,7 @@
                                 <p className="text-xs font-bold text-stone-800">{t.name}</p>
                                 <span className="text-[9px] text-stone-400">기준: {formatSeconds(t.totalSeconds)}</span>
                               </div>
-                              <span className="font-mono text-xs font-black text-rose-600">{formatSeconds(t.remainingSeconds)}</span>
+                                <span className="font-mono text-xs font-black text-rose-600">{formatSeconds(t.remainingSeconds)}</span>
                             </div>
                           ))}
                         </div>
@@ -872,10 +979,10 @@
               </div>
             )}
 
-            {/* 4. 가속 센터 패널 */}
+            {/* 4. 가속 센터 패널 (완료/대기 상태가 맨 앞으로 자동 정렬 적용) */}
             {activeTab === 'timer' && (
               <div className="space-y-8">
-                {/* 상단 고정 배치: 새 가속 타이머 등록 및 수동 강제 청소 버튼 멀티 레이아웃 */}
+                {/* 상단 배치: 새 가속 타이머 등록 및 수동 강제 청소 버튼 */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border shadow-sm max-w-4xl">
                   <div className="space-y-4 flex-1 w-full">
                     <h3 className="font-black text-stone-900 text-sm">⚙️ 새 가속 타이머 직접 등록</h3>
@@ -890,10 +997,9 @@
                     </form>
                   </div>
                   
-                  {/* 💡 [수동 강제 리셋 버튼 추가]: 웹 브라우저 캐시 및 서버 찌꺼기를 원클릭으로 한 번에 소거 */}
                   <div className="border-t md:border-t-0 md:border-l border-stone-100 pt-4 md:pt-0 md:pl-6 shrink-0 flex flex-col justify-center h-full space-y-2">
                     <span className="text-[10px] font-black text-rose-500 block">⚠️ TIMER RESET TOOL</span>
-                    <p className="text-[11px] text-stone-400 font-medium max-w-[200px]">화면에 기차 3번이나 광산 6개가 안 보이고 버그가 날 때 누르는 수동 강제 청소 장치입니다.</p>
+                    <p className="text-[11px] text-stone-400 font-medium max-w-[200px]">타이머 구성이 꼬이거나 구조적인 동기화가 불가능할 때 사용하는 하드 리셋 장치입니다.</p>
                     <button
                       type="button"
                       onClick={forceResetTimersStructure}
@@ -904,20 +1010,20 @@
                   </div>
                 </div>
 
-                {/* 🚂 분류 1: 곰젤리 열차 전용 섹션 */}
+                {/* 🚂 분류 1: 곰젤리 열차 전용 섹션 (완료 우선 정렬) */}
                 <div className="space-y-3">
-                  <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🚂 곰젤리 열차 모니터링</h4>
+                  <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🚂 곰젤리 열차 모니터링 <span className="text-[10px] text-[#9B6F43] font-normal">(완료/대기 타이머가 자동 맨 앞으로 고정)</span></h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {timers.filter(t => t.id.startsWith('train_')).map(t => renderTimerCard(t))}
+                    {getSortedTimers(timers.filter(t => t.id.startsWith('train_'))).map(t => renderTimerCard(t))}
                   </div>
                 </div>
 
-                {/* ⛏️ 분류 2: 광산 채굴 전용 섹션 */}
+                {/* ⛏️ 분류 2: 광산 채굴 전용 섹션 (완료 우선 정렬) */}
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-stone-900 to-stone-800 text-white p-4 rounded-2xl shadow-md">
                     <div>
                       <h4 className="text-sm font-black flex items-center gap-1.5">⛏️ 납작이 광산 채굴 현황 (6배수 확장)</h4>
-                      <p className="text-[11px] text-stone-300 mt-0.5">보내고 싶은 광산을 체크한 뒤 일괄 출발시키세요. (고정시간이 달라도 개별 출발)</p>
+                      <p className="text-[11px] text-stone-300 mt-0.5">완료되었거나 대기 중인 광산이 항상 맨 앞에 배치되므로 편하게 일괄 체크해서 출발시키세요.</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                       <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer bg-white/10 px-3 py-2 rounded-xl border border-white/10 hover:bg-white/20 select-none">
@@ -940,15 +1046,15 @@
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {timers.filter(t => t.id.startsWith('mine_harvest_')).map(t => renderTimerCard(t, true))}
+                    {getSortedTimers(timers.filter(t => t.id.startsWith('mine_harvest_'))).map(t => renderTimerCard(t, true))}
                   </div>
                 </div>
 
-                {/* 📦 분류 3: 왕국 기본 고정 콘텐츠 섹션 */}
+                {/* 📦 분류 3: 왕국 기본 고정 콘텐츠 섹션 (완료 우선 정렬) */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🏰 왕국 주요 기본 콘텐츠 초시계</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {timers.filter(t => t.preset && !t.id.startsWith('train_') && !t.id.startsWith('mine_harvest_')).map(t => renderTimerCard(t))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {getSortedTimers(timers.filter(t => t.preset && !t.id.startsWith('train_') && !t.id.startsWith('mine_harvest_'))).map(t => renderTimerCard(t))}
                   </div>
                 </div>
 
@@ -961,7 +1067,7 @@
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {timers.filter(t => !t.preset).map(t => renderTimerCard(t))}
+                      {getSortedTimers(timers.filter(t => !t.preset)).map(t => renderTimerCard(t))}
                     </div>
                   )}
                 </div>
@@ -983,20 +1089,39 @@
             </div>
           )}
 
-          {/* 고정 시간 직접 변경 팝업 모달 */}
+          {/* 🛠️ 업그레이드 통합 팝업 모달: 고정 기준시간 수정 + 현재 남은 시간 자체 정밀 수정 */}
           {inlineEditConfig.isOpen && (
             <div className="fixed inset-0 z-[200] bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
-                <h4 className="font-black text-stone-900 text-base">⚙️ [{inlineEditConfig.name}] 고정 기준시간 변경</h4>
-                <p className="text-xs text-stone-400">해당 타이머 수령의 한계 한도 고정 시간을 직접 새로 설정합니다.</p>
-                <div className="grid grid-cols-3 gap-2 text-xs font-bold">
-                  <div className="flex flex-col gap-1"><span>일</span><input type="number" value={inlineEditConfig.days} onChange={e => setInlineEditConfig({ ...inlineEditConfig, days: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center" /></div>
-                  <div className="flex flex-col gap-1"><span>시간</span><input type="number" value={inlineEditConfig.hours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, hours: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center" /></div>
-                  <div className="flex flex-col gap-1"><span>분</span><input type="number" value={inlineEditConfig.minutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, minutes: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center" /></div>
+              <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5">
+                <div>
+                  <h4 className="font-black text-stone-900 text-base">⚙️ [{inlineEditConfig.name}] 시간 정밀 설정</h4>
+                  <p className="text-xs text-stone-400 mt-1">고정 한계 수령 시간과 현재 진행 상황을 직접 컨트롤합니다.</p>
                 </div>
-                <div className="flex gap-2 justify-end pt-2">
+                
+                {/* 섹션 1: 고정 기준 시간 설정 */}
+                <div className="space-y-2">
+                  <span className="text-xs font-black text-stone-700 block">📌 1. 고정 최대 기준 시간</span>
+                  <div className="grid grid-cols-3 gap-2 text-xs font-bold">
+                    <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400">일</span><input type="number" value={inlineEditConfig.days} onChange={e => setInlineEditConfig({ ...inlineEditConfig, days: e.target.value })} className="border p-2 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
+                    <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400">시간</span><input type="number" value={inlineEditConfig.hours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, hours: e.target.value })} className="border p-2 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
+                    <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400">분</span><input type="number" value={inlineEditConfig.minutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, minutes: e.target.value })} className="border p-2 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
+                  </div>
+                </div>
+
+                {/* 섹션 2: 현재 남은 시간 자체 정밀 수정 */}
+                <div className="space-y-2 border-t pt-3">
+                  <span className="text-xs font-black text-amber-800 block">⏳ 2. 현재 남은 수령 시간 (자체 정밀 수정)</span>
+                  <p className="text-[11px] text-stone-400">출발 세팅이 늦어졌을 때 게임 화면에 표시된 남은 시간을 똑같이 적어주세요.</p>
+                  <div className="grid grid-cols-3 gap-2 text-xs font-bold">
+                    <div className="flex flex-col gap-1"><span className="text-[10px] text-amber-600">일</span><input type="number" value={inlineEditConfig.remDays} onChange={e => setInlineEditConfig({ ...inlineEditConfig, remDays: e.target.value })} className="border p-2 rounded-xl bg-amber-50/30 focus:outline-none text-center font-mono text-amber-900" /></div>
+                    <div className="flex flex-col gap-1"><span className="text-[10px] text-amber-600">시간</span><input type="number" value={inlineEditConfig.remHours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, remHours: e.target.value })} className="border p-2 rounded-xl bg-amber-50/30 focus:outline-none text-center font-mono text-amber-900" /></div>
+                    <div className="flex flex-col gap-1"><span className="text-[10px] text-amber-600">분</span><input type="number" value={inlineEditConfig.remMinutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, remMinutes: e.target.value })} className="border p-2 rounded-xl bg-amber-50/30 focus:outline-none text-center font-mono text-amber-900" /></div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end pt-2 border-t">
                   <button onClick={() => setInlineEditConfig({ ...inlineEditConfig, isOpen: false })} className="px-4 py-2 border rounded-xl text-xs font-bold hover:bg-stone-50">취소</button>
-                  <button onClick={saveInlineEditModal} className="px-4 py-2 bg-amber-800 text-white rounded-xl text-xs font-bold">고정시간 변경 저장</button>
+                  <button onClick={saveInlineEditModal} className="px-4 py-2 bg-stone-900 text-white rounded-xl text-xs font-bold shadow-md">설정값 일괄 적용 저장</button>
                 </div>
               </div>
             </div>
