@@ -175,7 +175,7 @@
     const PauseIcon = () => <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>;
     const RefreshIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>;
 
-    // --- 초기 데이터 데이터셋 ---
+    // --- 초기 데이터 데이터셋 (세부 재화 6종 복구) ---
     const INITIAL_DAILY = [
       { id: 1, name: '친구 선물 보내기', done: false, important: true, memo: '' },
       { id: 2, name: '무료 선물 받기', done: false, important: false, memo: '' },
@@ -194,15 +194,27 @@
       { id: 202, name: '킹덤 아레나 리그 참여', done: false, important: true, memo: '' },
       { id: 203, name: '증명의 전장 완료', done: false, important: false, memo: '' }
     ];
+    
+    // 💡 6종 정밀 재화 설정값 원상태 복구
     const INITIAL_CURRENCIES = [
       { id: 'stamina_normal', name: '일반 스태미너', current: 50, max: 100, rechargeTimeMinutes: 5, isActive: true, lastUpdated: Date.now() },
       { id: 'stamina_thick', name: '두툼한 스태미너', current: 20, max: 50, rechargeTimeMinutes: 10, isActive: true, lastUpdated: Date.now() },
-      { id: 'arena', name: '아레나 티켓', current: 4, max: 8, rechargeTimeMinutes: 60, isActive: true, lastUpdated: Date.now() }
+      { id: 'stamina_destiny', name: '운명의 스태미너', current: 10, max: 30, rechargeTimeMinutes: 18, isActive: true, lastUpdated: Date.now() },
+      { id: 'arena', name: '아레나 티켓', current: 4, max: 8, rechargeTimeMinutes: 60, isActive: true, lastUpdated: Date.now() },
+      { id: 'arcade_arena', name: '아케이드 아레나', current: 5, max: 10, rechargeTimeMinutes: 120, isActive: true, lastUpdated: Date.now() },
+      { id: 'alliance', name: '수호의 성전', current: 2, max: 6, rechargeTimeMinutes: 720, isActive: true, lastUpdated: Date.now() }
     ];
+    
+    // 💡 필수 가속 타이머 8종 풀세트 복구
     const DEFAULT_TIMERS = [
       { id: 'fountain', name: '풍요의 분수', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
+      { id: 'dock', name: '선착장 보상', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
       { id: 'train_1', name: '곰젤리 열차 1번', totalSeconds: 4 * 3600, remainingSeconds: 4 * 3600, isRunning: false, preset: true },
-      { id: 'balloon', name: '곰젤리 열기구', totalSeconds: 5 * 3600 + 46 * 60, remainingSeconds: 5 * 3600 + 46 * 60, isRunning: false, preset: true }
+      { id: 'train_2', name: '곰젤리 열차 2번', totalSeconds: 6 * 3600, remainingSeconds: 6 * 3600, isRunning: false, preset: true },
+      { id: 'balloon', name: '곰젤리 열기구', totalSeconds: 5 * 3600 + 46 * 60, remainingSeconds: 5 * 3600 + 46 * 60, isRunning: false, preset: true },
+      { id: 'beach', name: '앵무의 해변교역소', totalSeconds: 6 * 3600, remainingSeconds: 6 * 3600, isRunning: false, preset: true },
+      { id: 'mine_explore', name: '광산 탐험', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
+      { id: 'mine_harvest', name: '광산 채굴', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true }
     ];
 
     function App() {
@@ -212,8 +224,9 @@
       const [syncCode, setSyncCode] = useState(() => localStorage.getItem('crk_sync_code_v3') || generateSyncCode());
       const [cloudStatus, setCloudStatus] = useState('authenticating');
       const [toastMessage, setToastMessage] = useState('');
+      const [promptConfig, setPromptConfig] = useState({ isOpen: false, title: '', placeholder: '', value: '', onConfirm: null });
 
-      // 캐싱 데이터 로드
+      // 상태 보존용 Hooks 호출
       const [dailyHomework, setDailyHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_daily_hw')) || INITIAL_DAILY);
       const [twelveHourHomework, setTwelveHourHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_12h_hw')) || INITIAL_TWELVE);
       const [weeklyHomework, setWeeklyHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_weekly_hw')) || INITIAL_WEEKLY);
@@ -231,6 +244,7 @@
       const [newDailyName, setNewDailyName] = useState('');
       const [newTwelveName, setNewTwelveName] = useState('');
       const [newWeeklyName, setNewWeeklyName] = useState('');
+      
       const [customTimerName, setCustomTimerName] = useState('');
       const [customTimerDays, setCustomTimerDays] = useState('0');
       const [customTimerHours, setCustomTimerHours] = useState('0');
@@ -241,13 +255,13 @@
         setTimeout(() => setToastMessage(''), 2500);
       }
 
-      // --- ⚙️ 실시간 카운트다운 감소 루프 엔진 ---
+      // --- ⚙️ 실시간 무지연 카운트다운 루프 엔진 (재화 충전 자동 연산 결합) ---
       useEffect(() => {
         const interval = setInterval(() => {
           const currentTime = new Date();
           setNow(currentTime);
 
-          // 1. 일반 타이머 감소 처리
+          // 1. 일반 가속 타이머 처리
           setTimers(prevTimers => {
             let changed = false;
             const nextTimers = prevTimers.map(t => {
@@ -268,7 +282,7 @@
             return nextTimers;
           });
 
-          // 2. 퀵 타이머 감소 처리
+          // 2. 퀵 타이머 처리
           setQuickTimer(prevQuick => {
             if (prevQuick.isRunning && prevQuick.remainingSeconds > 0) {
               const updatedSeconds = prevQuick.remainingSeconds - 1;
@@ -287,6 +301,21 @@
 
         return () => clearInterval(interval);
       }, [cloudStatus]);
+
+      // --- ⚡ 실시간 재화 시뮬레이터 실시간 계산식 매핑 ---
+      const computedCurrencies = currencies.map(c => {
+        if (c.current >= c.max || !c.isActive) return { ...c, liveCurrent: c.current, secondsToNext: 0, secondsToFull: 0 };
+        const msPerUnit = c.rechargeTimeMinutes * 60 * 1000;
+        const elapsedMs = now.getTime() - c.lastUpdated;
+        const gainedUnits = Math.floor(elapsedMs / msPerUnit);
+        const liveCurrent = Math.min(c.max, c.current + gainedUnits);
+        let secondsToNext = 0, secondsToFull = 0;
+        if (liveCurrent < c.max) {
+          secondsToNext = Math.ceil((msPerUnit - (elapsedMs % msPerUnit)) / 1000);
+          secondsToFull = Math.ceil(((c.max - liveCurrent) * msPerUnit - (elapsedMs % msPerUnit)) / 1000);
+        }
+        return { ...c, liveCurrent, secondsToNext, secondsToFull };
+      });
 
       async function saveToCloud(newData) {
         if (!user || cloudStatus !== 'connected') return;
@@ -322,6 +351,7 @@
       function startTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: true } : t) }); }
       function pauseTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: false } : t) }); }
       function resetTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) }); }
+      
       function accelerateTimer(id, minutesToSkip) {
         dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - minutesToSkip * 60) } : t) });
       }
@@ -343,17 +373,39 @@
         showToast("🎯 이름이 수정되었습니다.");
       }
 
+      // 💡 오류 고쳐진 새 가속 타이머 직접 등록 연산 (일, 시간, 분 결합 적용)
       function handleAddCustomTimer(e) {
         e.preventDefault();
-        if (!customTimerName) return;
+        if (!customTimerName.trim()) return;
         const totalSecs = (parseInt(customTimerDays) || 0) * 86400 + (parseInt(customTimerHours) || 0) * 3600 + (parseInt(customTimerMinutes) || 0) * 60;
-        if (totalSecs <= 0) return;
-        const newTimer = { id: 'custom_' + Date.now(), name: customTimerName, totalSeconds: totalSecs, remainingSeconds: totalSecs, isRunning: false, preset: false };
+        if (totalSecs <= 0) {
+          showToast("⚠️ 시간을 올바르게 입력해 주세요.");
+          return;
+        }
+        const newTimer = { id: 'custom_' + Date.now(), name: customTimerName.trim(), totalSeconds: totalSecs, remainingSeconds: totalSecs, isRunning: false, preset: false };
         dispatchStateUpdate({ timers: [...timers, newTimer] });
         setCustomTimerName('');
+        setCustomTimerDays('0');
+        setCustomTimerHours('0');
+        setCustomTimerMinutes('0');
+        showToast("⏳ 새 커스텀 타이머가 생성되었습니다.");
       }
 
       function handleDeleteTimer(id) { dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) }); }
+
+      // ⚡ 재화 수동 수정 반영용 제어 컨트롤러들
+      const handleUpdateCurrencyCurrent = (id, val) => {
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, current: parseInt(val) || 0, lastUpdated: Date.now() } : c) });
+      };
+      const handleUpdateCurrencyMax = (id, val) => {
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, max: parseInt(val) || 0, lastUpdated: Date.now() } : c) });
+      };
+      const handleUpdateCurrencyMinutes = (id, val) => {
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, rechargeTimeMinutes: parseInt(val) || 1, lastUpdated: Date.now() } : c) });
+      };
+      const handleToggleCurrencyActive = (id) => {
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, isActive: !c.isActive, lastUpdated: Date.now() } : c) });
+      };
 
       useEffect(() => {
         signInAnonymously(auth).catch(() => setCloudStatus('local'));
@@ -383,7 +435,7 @@
         return () => unsubscribe();
       }, [user, syncCode]);
 
-      // 숙제 데이터 연산
+      // 구조 파악 연산
       const dailyDoneCount = dailyHomework.filter(i => i.done).length;
       const twelveHourDoneCount = twelveHourHomework.filter(i => i.done).length;
       const weeklyDoneCount = weeklyHomework.filter(i => i.done).length;
@@ -490,7 +542,7 @@
                     </div>
                   </div>
 
-                  {/* 🛠️ 레이아웃 복구: 프로그레스 패널 하단 일퀘 완료 세부 현황 복원 */}
+                  {/* 프로그레스 패널 */}
                   <div className="lg:col-span-5 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 tracking-widest uppercase block">📊 PROGRESS PANEL</span>
@@ -519,9 +571,27 @@
                   </div>
                 </div>
 
-                {/* 리셋 모드 시간판과 🛠️임박 알림 센터(URGENT MONITOR)를 그리드로 가로 병합 나열 */}
+                {/* 💡 대시보드 뷰 하단 영역에 실시간 동기화 재화 대시보드 복구 */}
+                <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-3">
+                  <span className="text-[10px] font-bold text-stone-400 block tracking-widest uppercase">⚡ REALTIME CURRENCY DASHBOARD</span>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    {computedCurrencies.map(c => (
+                      <div key={c.id} className={`p-4 rounded-2xl border ${c.isActive ? 'bg-[#FAF9F6] border-stone-200/60' : 'bg-stone-50 opacity-40'}`}>
+                        <p className="text-[11px] font-bold text-stone-500">{c.name}</p>
+                        <p className="text-xl font-black text-stone-900 mt-1.5 font-mono">{c.liveCurrent} <span className="text-xs text-stone-400 font-normal">/ {c.max}</span></p>
+                        {c.isActive && c.liveCurrent < c.max && (
+                          <div className="mt-2 text-[9px] text-stone-400 font-medium font-sans space-y-0.5">
+                            <div>다음충전: {c.secondsToNext}초</div>
+                            <div className="text-rose-600 font-bold">완충: {formatSeconds(c.secondsToFull)}</div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 리셋 모드 시간판과 임박 알림 센터 */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  {/* 리셋 전용 바 */}
                   <div className="lg:col-span-5 bg-white p-6 rounded-3xl border shadow-sm space-y-4 flex flex-col justify-center">
                     <span className="text-[10px] font-bold text-stone-400 block tracking-widest uppercase">⏰ RESETS TIMER</span>
                     <div className="space-y-2 text-xs">
@@ -540,7 +610,7 @@
                     </div>
                   </div>
 
-                  {/* 🛠️ 대시보드 복구: 임박 타이머 모니터 기능 전체 복원 (5분 이내 필터링 포함) */}
+                  {/* 임박 알림 센터 */}
                   <div className="lg:col-span-7 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 block tracking-widest uppercase">⌛ URGENT MONITOR</span>
@@ -658,33 +728,49 @@
               </div>
             )}
 
-            {/* 3. 재화 설정 */}
+            {/* 3. 💡 재화 패널 수정 화면 세부 수동 설정 UI 완벽 복구 */}
             {activeTab === 'currency' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {currencies.map(c => (
-                  <div key={c.id} className="bg-white rounded-3xl border p-6 shadow-sm space-y-4">
-                    <h3 className="font-bold text-stone-800 border-b pb-2">{c.name}</h3>
-                    <div className="bg-stone-50 p-4 rounded-xl border font-mono flex justify-between text-base">
-                      <input type="number" value={c.current} onChange={e => dispatchStateUpdate({ currencies: currencies.map(x => x.id === c.id ? { ...x, current: parseInt(e.target.value) || 0 } : x) })} className="w-16 bg-transparent font-bold focus:outline-none" />
-                      <span className="text-stone-400">/</span>
-                      <input type="number" value={c.max} onChange={e => dispatchStateUpdate({ currencies: currencies.map(x => x.id === c.id ? { ...x, max: parseInt(e.target.value) || 0 } : x) })} className="w-16 bg-transparent text-right font-bold focus:outline-none" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {computedCurrencies.map(c => (
+                  <div key={c.id} className={`bg-white rounded-3xl border p-6 shadow-sm flex flex-col justify-between ${!c.isActive && 'opacity-40 bg-stone-50'}`}>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="font-black text-stone-800 text-sm">{c.name}</span>
+                      <button onClick={() => handleToggleCurrencyActive(c.id)} className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors ${c.isActive ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-stone-900 text-white'}`}>{c.isActive ? '비활성화' : '활성화시키기'}</button>
                     </div>
+                    {c.isActive && (
+                      <div className="space-y-4">
+                        <div className="bg-stone-50 p-4 rounded-xl border font-mono flex justify-between text-base">
+                          <div className="flex flex-col"><span className="text-[9px] font-bold text-stone-400 block mb-1">현재 보유량</span><input type="number" value={c.current} onChange={e => handleUpdateCurrencyCurrent(c.id, e.target.value)} className="w-16 bg-transparent font-bold focus:outline-none" /></div>
+                          <span className="text-stone-400 self-end mb-1">/</span>
+                          <div className="flex flex-col items-end"><span className="text-[9px] font-bold text-stone-400 block mb-1">최대 상한치</span><input type="number" value={c.max} onChange={e => handleUpdateCurrencyMax(c.id, e.target.value)} className="w-16 bg-transparent text-right font-bold focus:outline-none" /></div>
+                        </div>
+                        <div className="flex justify-between items-center text-xs font-bold text-stone-600 bg-stone-50/50 p-2.5 rounded-xl border border-dashed">
+                          <span>개당 충전 시간 (분):</span>
+                          <input type="number" value={c.rechargeTimeMinutes} onChange={e => handleUpdateCurrencyMinutes(c.id, e.target.value)} className="w-12 text-center bg-white border rounded-lg py-1 focus:outline-none" />
+                        </div>
+                        <div className="pt-3 border-t text-xs space-y-1.5 font-bold text-stone-600">
+                          <div className="flex justify-between"><span>실시간 동기화 수량:</span><span className="text-stone-900 font-black">{c.liveCurrent}</span></div>
+                          <div className="flex justify-between"><span>다음 충전까지:</span><span className="text-stone-800">{c.secondsToNext}초</span></div>
+                          <div className="flex justify-between"><span>완전 충전까지:</span><span className="text-rose-600 font-extrabold">{formatSeconds(c.secondsToFull)}</span></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
 
-            {/* 4. 가속 센터 */}
+            {/* 4. 가속 센터 (💡 직접 단축 시간 프롬프트 창 완벽 복구) */}
             {activeTab === 'timer' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl border shadow-sm h-fit space-y-4">
                   <h3 className="font-bold text-stone-900">➕ 새 가속 타이머 등록</h3>
                   <form onSubmit={handleAddCustomTimer} className="space-y-3">
                     <input type="text" placeholder="초시계 이름" value={customTimerName} onChange={e => setCustomTimerName(e.target.value)} className="w-full border text-xs p-3 rounded-xl focus:outline-none" />
-                    <div className="grid grid-cols-3 gap-1.5 text-xs">
-                      <input type="number" placeholder="일" value={customTimerDays} onChange={e => setCustomTimerDays(e.target.value)} className="border p-2 rounded-lg text-center focus:outline-none" />
-                      <input type="number" placeholder="시" value={customTimerHours} onChange={e => setCustomTimerHours(e.target.value)} className="border p-2 rounded-lg text-center focus:outline-none" />
-                      <input type="number" placeholder="분" value={customTimerMinutes} onChange={e => setCustomTimerMinutes(e.target.value)} className="border p-2 rounded-lg text-center focus:outline-none" />
+                    <div className="grid grid-cols-3 gap-1.5 text-xs font-bold">
+                      <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerDays} onChange={e => setCustomTimerDays(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50" /><span className="text-[10px] text-stone-400">일</span></div>
+                      <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerHours} onChange={e => setCustomTimerHours(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50" /><span className="text-[10px] text-stone-400">시간</span></div>
+                      <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerMinutes} onChange={e => setCustomTimerMinutes(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50" /><span className="text-[10px] text-stone-400">분</span></div>
                     </div>
                     <button type="submit" className="w-full bg-stone-900 text-white text-xs font-bold py-3 rounded-xl">타이머 등록</button>
                   </form>
@@ -709,6 +795,18 @@
                         <button type="button" onClick={() => accelerateTimer(t.id, 10)} className="bg-stone-50 border rounded-md px-2 py-1">-10분</button>
                         <button type="button" onClick={() => accelerateTimer(t.id, 30)} className="bg-stone-50 border rounded-md px-2 py-1">-30분</button>
                         <button type="button" onClick={() => accelerateTimer(t.id, 60)} className="bg-stone-50 border rounded-md px-2 py-1">-1시간</button>
+                        
+                        {/* 💡 직접 분 단위를 숫자로 써서 빠르게 스킵하는 [직접 입력] 단축 팝업창 완벽 복구 */}
+                        <button type="button" onClick={() => {
+                          setPromptConfig({
+                            isOpen: true,
+                            title: `⏱️ [${t.name}] 직접 시간 단축 처리`,
+                            placeholder: "건너뛸 시간 입력 (분 단위 숫자)",
+                            value: "10",
+                            onConfirm: (val) => accelerateTimer(t.id, parseInt(val) || 0)
+                          });
+                        }} className="bg-stone-900 text-white rounded-md px-2 py-1">직접 입력</button>
+                        
                         {!t.preset && <button type="button" onClick={() => handleDeleteTimer(t.id)} className="bg-rose-50 text-rose-600 border border-rose-200 rounded-md px-2 py-1 ml-auto">삭제</button>}
                       </div>
                     </div>
@@ -717,6 +815,20 @@
               </div>
             )}
           </main>
+
+          {/* 💡 직접 시간 입력 단축 시 띄워지는 프롬프트 입력창 모달 컴포넌트 복구 */}
+          {promptConfig.isOpen && (
+            <div className="fixed inset-0 z-[200] bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+                <h4 className="font-bold text-stone-800 text-base">{promptConfig.title}</h4>
+                <input type="number" placeholder={promptConfig.placeholder} value={promptConfig.value} onChange={e => setPromptConfig({ ...promptConfig, value: e.target.value })} className="w-full border p-3 rounded-xl focus:outline-none font-bold" />
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setPromptConfig({ ...promptConfig, isOpen: false })} className="px-4 py-2 border rounded-xl text-xs font-bold hover:bg-stone-50">취소</button>
+                  <button onClick={() => { promptConfig.onConfirm(promptConfig.value); setPromptConfig({ ...promptConfig, isOpen: false }); }} className="px-4 py-2 bg-stone-900 text-white rounded-xl text-xs font-bold">시간 삭감 적용</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
