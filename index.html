@@ -175,7 +175,7 @@
     const PauseIcon = () => <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>;
     const RefreshIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>;
 
-    // --- 초기 데이터 데이터셋 (세부 재화 6종 복구) ---
+    // --- 초기 데이터 데이터셋 (세부 재화 6종) ---
     const INITIAL_DAILY = [
       { id: 1, name: '친구 선물 보내기', done: false, important: true, memo: '' },
       { id: 2, name: '무료 선물 받기', done: false, important: false, memo: '' },
@@ -195,7 +195,6 @@
       { id: 203, name: '증명의 전장 완료', done: false, important: false, memo: '' }
     ];
     
-    // 💡 6종 정밀 재화 설정값 원상태 복구
     const INITIAL_CURRENCIES = [
       { id: 'stamina_normal', name: '일반 스태미너', current: 50, max: 100, rechargeTimeMinutes: 5, isActive: true, lastUpdated: Date.now() },
       { id: 'stamina_thick', name: '두툼한 스태미너', current: 20, max: 50, rechargeTimeMinutes: 10, isActive: true, lastUpdated: Date.now() },
@@ -205,16 +204,22 @@
       { id: 'alliance', name: '수호의 성전', current: 2, max: 6, rechargeTimeMinutes: 720, isActive: true, lastUpdated: Date.now() }
     ];
     
-    // 💡 필수 가속 타이머 8종 풀세트 복구
+    // 💡 열차 3번까지 확장 & 광산채굴 6개로 확장된 풀세트 타이머 목록
     const DEFAULT_TIMERS = [
       { id: 'fountain', name: '풍요의 분수', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
       { id: 'dock', name: '선착장 보상', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
       { id: 'train_1', name: '곰젤리 열차 1번', totalSeconds: 4 * 3600, remainingSeconds: 4 * 3600, isRunning: false, preset: true },
       { id: 'train_2', name: '곰젤리 열차 2번', totalSeconds: 6 * 3600, remainingSeconds: 6 * 3600, isRunning: false, preset: true },
+      { id: 'train_3', name: '곰젤리 열차 3번', totalSeconds: 6 * 3600, remainingSeconds: 6 * 3600, isRunning: false, preset: true }, // 💡 추가됨
       { id: 'balloon', name: '곰젤리 열기구', totalSeconds: 5 * 3600 + 46 * 60, remainingSeconds: 5 * 3600 + 46 * 60, isRunning: false, preset: true },
       { id: 'beach', name: '앵무의 해변교역소', totalSeconds: 6 * 3600, remainingSeconds: 6 * 3600, isRunning: false, preset: true },
       { id: 'mine_explore', name: '광산 탐험', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
-      { id: 'mine_harvest', name: '광산 채굴', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true }
+      { id: 'mine_harvest_1', name: '광산 채굴 1번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true }, // 💡 6개로 확장
+      { id: 'mine_harvest_2', name: '광산 채굴 2번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true },
+      { id: 'mine_harvest_3', name: '광산 채굴 3번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true },
+      { id: 'mine_harvest_4', name: '광산 채굴 4번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true },
+      { id: 'mine_harvest_5', name: '광산 채굴 5번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true },
+      { id: 'mine_harvest_6', name: '광산 채굴 6번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true }
     ];
 
     function App() {
@@ -224,9 +229,12 @@
       const [syncCode, setSyncCode] = useState(() => localStorage.getItem('crk_sync_code_v3') || generateSyncCode());
       const [cloudStatus, setCloudStatus] = useState('authenticating');
       const [toastMessage, setToastMessage] = useState('');
+      
+      // 💡 모달 설정 상태창 복구 (고정 시간 직접 변경용 모달 결합)
       const [promptConfig, setPromptConfig] = useState({ isOpen: false, title: '', placeholder: '', value: '', onConfirm: null });
+      const [inlineEditConfig, setInlineEditConfig] = useState({ isOpen: false, id: null, name: '', days: '0', hours: '0', minutes: '0' });
 
-      // 상태 보존용 Hooks 호출
+      // 내부 캐싱 스테이트 로드
       const [dailyHomework, setDailyHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_daily_hw')) || INITIAL_DAILY);
       const [twelveHourHomework, setTwelveHourHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_12h_hw')) || INITIAL_TWELVE);
       const [weeklyHomework, setWeeklyHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_weekly_hw')) || INITIAL_WEEKLY);
@@ -255,13 +263,13 @@
         setTimeout(() => setToastMessage(''), 2500);
       }
 
-      // --- ⚙️ 실시간 무지연 카운트다운 루프 엔진 (재화 충전 자동 연산 결합) ---
+      // --- ⚙️ 실시간 엔진 무한 반복 루프 ---
       useEffect(() => {
         const interval = setInterval(() => {
           const currentTime = new Date();
           setNow(currentTime);
 
-          // 1. 일반 가속 타이머 처리
+          // 1. 가속 타이머 카운트다운 스케줄러 감소 연산
           setTimers(prevTimers => {
             let changed = false;
             const nextTimers = prevTimers.map(t => {
@@ -282,7 +290,7 @@
             return nextTimers;
           });
 
-          // 2. 퀵 타이머 처리
+          // 2. 퀵 타이머 카운트다운 연산
           setQuickTimer(prevQuick => {
             if (prevQuick.isRunning && prevQuick.remainingSeconds > 0) {
               const updatedSeconds = prevQuick.remainingSeconds - 1;
@@ -302,7 +310,7 @@
         return () => clearInterval(interval);
       }, [cloudStatus]);
 
-      // --- ⚡ 실시간 재화 시뮬레이터 실시간 계산식 매핑 ---
+      // --- ⚡ 실시간 재화 시뮬레이터 연산 매핑 ---
       const computedCurrencies = currencies.map(c => {
         if (c.current >= c.max || !c.isActive) return { ...c, liveCurrent: c.current, secondsToNext: 0, secondsToFull: 0 };
         const msPerUnit = c.rechargeTimeMinutes * 60 * 1000;
@@ -332,7 +340,7 @@
             lastUpdatedTime: Date.now()
           }, { merge: true });
         } catch (e) {
-          console.error(e);
+          print(e);
         }
       }
 
@@ -347,7 +355,7 @@
         saveToCloud(updates);
       }
 
-      // 조작 제어 함수군
+      // 조작 제어 제어루틴
       function startTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: true } : t) }); }
       function pauseTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: false } : t) }); }
       function resetTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) }); }
@@ -373,7 +381,7 @@
         showToast("🎯 이름이 수정되었습니다.");
       }
 
-      // 💡 오류 고쳐진 새 가속 타이머 직접 등록 연산 (일, 시간, 분 결합 적용)
+      // 💡 새 가속 타이머 추가 기능 복구 완료
       function handleAddCustomTimer(e) {
         e.preventDefault();
         if (!customTimerName.trim()) return;
@@ -393,7 +401,24 @@
 
       function handleDeleteTimer(id) { dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) }); }
 
-      // ⚡ 재화 수동 수정 반영용 제어 컨트롤러들
+      // 💡 고정 시간 전용 직접 수정 인라인 모달 컨트롤러 복구 완료
+      function openInlineEditModal(t) {
+        const d = Math.floor(t.totalSeconds / 86400);
+        const h = Math.floor((t.totalSeconds % 86400) / 3600);
+        const m = Math.floor((t.totalSeconds % 3600) / 60);
+        setInlineEditConfig({ isOpen: true, id: t.id, name: t.name, days: String(d), hours: String(h), minutes: String(m) });
+      }
+
+      function saveInlineEditModal() {
+        const totalSecs = (parseInt(inlineEditConfig.days) || 0) * 86400 + (parseInt(inlineEditConfig.hours) || 0) * 3600 + (parseInt(inlineEditConfig.minutes) || 0) * 60;
+        if (totalSecs <= 0) return;
+        const next = timers.map(t => (t.id === inlineEditConfig.id ? { ...t, totalSeconds: totalSecs, remainingSeconds: totalSecs, isRunning: false } : t));
+        dispatchStateUpdate({ timers: next });
+        setInlineEditConfig({ ...inlineEditConfig, isOpen: false });
+        showToast("⚙️ 고정 기준 시간이 수정되었습니다.");
+      }
+
+      // 재화 수정용 핸들러들 복구
       const handleUpdateCurrencyCurrent = (id, val) => {
         dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, current: parseInt(val) || 0, lastUpdated: Date.now() } : c) });
       };
@@ -435,7 +460,7 @@
         return () => unsubscribe();
       }, [user, syncCode]);
 
-      // 구조 파악 연산
+      // 구조 렌더링용 변수들
       const dailyDoneCount = dailyHomework.filter(i => i.done).length;
       const twelveHourDoneCount = twelveHourHomework.filter(i => i.done).length;
       const weeklyDoneCount = weeklyHomework.filter(i => i.done).length;
@@ -571,7 +596,7 @@
                   </div>
                 </div>
 
-                {/* 💡 대시보드 뷰 하단 영역에 실시간 동기화 재화 대시보드 복구 */}
+                {/* 💡 실시간 6종 충전식 재화 대시보드 완벽 복구 */}
                 <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-3">
                   <span className="text-[10px] font-bold text-stone-400 block tracking-widest uppercase">⚡ REALTIME CURRENCY DASHBOARD</span>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -728,7 +753,7 @@
               </div>
             )}
 
-            {/* 3. 💡 재화 패널 수정 화면 세부 수동 설정 UI 완벽 복구 */}
+            {/* 3. 재화 설정 변경 패널 */}
             {activeTab === 'currency' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {computedCurrencies.map(c => (
@@ -760,7 +785,7 @@
               </div>
             )}
 
-            {/* 4. 가속 센터 (💡 직접 단축 시간 프롬프트 창 완벽 복구) */}
+            {/* 4. 가속 센터 (💡 고정 시간 수정 버튼 + 단축 프롬프트 및 신규 타이머 연동 완벽 작동) */}
             {activeTab === 'timer' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl border shadow-sm h-fit space-y-4">
@@ -780,7 +805,11 @@
                   {timers.map(t => (
                     <div key={t.id} className="bg-white rounded-3xl border p-4 shadow-sm flex flex-col justify-between">
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-xs text-stone-800">{t.name}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-xs text-stone-800">{t.name}</span>
+                          {/* 💡 고정 시간 설정 수동 수정 기입용 트리거 버튼 복구 완료! */}
+                          <button type="button" onClick={() => openInlineEditModal(t)} className="text-[10px] text-[#9B6F43] bg-amber-50 px-1.5 py-0.5 rounded font-black hover:bg-amber-100 transition-colors">고정시간 수정</button>
+                        </div>
                         <div className="flex gap-1">
                           <button onClick={() => t.isRunning ? pauseTimer(t.id) : startTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-600">
                             {t.isRunning ? <PauseIcon /> : <PlayIcon />}
@@ -792,11 +821,11 @@
                         <p className="font-mono text-base font-black text-stone-900">{formatSeconds(t.remainingSeconds)} <span className="text-xs text-stone-400 font-normal">/ {formatSeconds(t.totalSeconds)}</span></p>
                       </div>
                       <div className="flex gap-1 mt-2 pt-2 border-t text-[9px] font-bold overflow-x-auto">
-                        <button type="button" onClick={() => accelerateTimer(t.id, 10)} className="bg-stone-50 border rounded-md px-2 py-1">-10분</button>
-                        <button type="button" onClick={() => accelerateTimer(t.id, 30)} className="bg-stone-50 border rounded-md px-2 py-1">-30분</button>
-                        <button type="button" onClick={() => accelerateTimer(t.id, 60)} className="bg-stone-50 border rounded-md px-2 py-1">-1시간</button>
+                        <button type="button" onClick={() => accelerateTimer(t.id, 10)} className="bg-stone-50 border rounded-md px-2 py-1 shrink-0">-10분</button>
+                        <button type="button" onClick={() => accelerateTimer(t.id, 30)} className="bg-stone-50 border rounded-md px-2 py-1 shrink-0">-30분</button>
+                        <button type="button" onClick={() => accelerateTimer(t.id, 60)} className="bg-stone-50 border rounded-md px-2 py-1 shrink-0">-1시간</button>
                         
-                        {/* 💡 직접 분 단위를 숫자로 써서 빠르게 스킵하는 [직접 입력] 단축 팝업창 완벽 복구 */}
+                        {/* 💡 분단위를 직접 써서 단축하는 프롬프트 창 완벽 구동 */}
                         <button type="button" onClick={() => {
                           setPromptConfig({
                             isOpen: true,
@@ -805,9 +834,9 @@
                             value: "10",
                             onConfirm: (val) => accelerateTimer(t.id, parseInt(val) || 0)
                           });
-                        }} className="bg-stone-900 text-white rounded-md px-2 py-1">직접 입력</button>
+                        }} className="bg-stone-900 text-white rounded-md px-2 py-1 shrink-0">직접 입력</button>
                         
-                        {!t.preset && <button type="button" onClick={() => handleDeleteTimer(t.id)} className="bg-rose-50 text-rose-600 border border-rose-200 rounded-md px-2 py-1 ml-auto">삭제</button>}
+                        {!t.preset && <button type="button" onClick={() => handleDeleteTimer(t.id)} className="bg-rose-50 text-rose-600 border border-rose-200 rounded-md px-2 py-1 ml-auto shrink-0">삭제</button>}
                       </div>
                     </div>
                   ))}
@@ -816,7 +845,7 @@
             )}
           </main>
 
-          {/* 💡 직접 시간 입력 단축 시 띄워지는 프롬프트 입력창 모달 컴포넌트 복구 */}
+          {/* 💡 직접 분단위 기입 단축 프롬프트 수동 입력 모달창 복구 완료 */}
           {promptConfig.isOpen && (
             <div className="fixed inset-0 z-[200] bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
@@ -825,6 +854,25 @@
                 <div className="flex gap-2 justify-end">
                   <button onClick={() => setPromptConfig({ ...promptConfig, isOpen: false })} className="px-4 py-2 border rounded-xl text-xs font-bold hover:bg-stone-50">취소</button>
                   <button onClick={() => { promptConfig.onConfirm(promptConfig.value); setPromptConfig({ ...promptConfig, isOpen: false }); }} className="px-4 py-2 bg-stone-900 text-white rounded-xl text-xs font-bold">시간 삭감 적용</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 💡 고정 기준 지정시간 수동 교체 전용 모달창 컴포넌트 추가 복구 완료! */}
+          {inlineEditConfig.isOpen && (
+            <div className="fixed inset-0 z-[200] bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+                <h4 className="font-black text-stone-900 text-base">⚙️ [{inlineEditConfig.name}] 고정 기준시간 변경</h4>
+                <p className="text-xs text-stone-400">해당 타이머 수령의 한계 한도 고정 시간을 직접 새로 설정합니다.</p>
+                <div className="grid grid-cols-3 gap-2 text-xs font-bold">
+                  <div className="flex flex-col gap-1"><span>일</span><input type="number" value={inlineEditConfig.days} onChange={e => setInlineEditConfig({ ...inlineEditConfig, days: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center" /></div>
+                  <div className="flex flex-col gap-1"><span>시간</span><input type="number" value={inlineEditConfig.hours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, hours: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center" /></div>
+                  <div className="flex flex-col gap-1"><span>분</span><input type="number" value={inlineEditConfig.minutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, minutes: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center" /></div>
+                </div>
+                <div className="flex gap-2 justify-end pt-2">
+                  <button onClick={() => setInlineEditConfig({ ...inlineEditConfig, isOpen: false })} className="px-4 py-2 border rounded-xl text-xs font-bold hover:bg-stone-50">취소</button>
+                  <button onClick={saveInlineEditModal} className="px-4 py-2 bg-amber-800 text-white rounded-xl text-xs font-bold">고정시간 변경 저장</button>
                 </div>
               </div>
             </div>
