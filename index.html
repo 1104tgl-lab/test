@@ -204,17 +204,16 @@
       { id: 'alliance', name: '수호의 성전', current: 2, max: 6, rechargeTimeMinutes: 720, isActive: true, lastUpdated: Date.now() }
     ];
     
-    // 💡 열차 3번까지 확장 & 광산채굴 6개로 확장된 풀세트 타이머 목록
     const DEFAULT_TIMERS = [
       { id: 'fountain', name: '풍요의 분수', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
       { id: 'dock', name: '선착장 보상', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
       { id: 'train_1', name: '곰젤리 열차 1번', totalSeconds: 4 * 3600, remainingSeconds: 4 * 3600, isRunning: false, preset: true },
       { id: 'train_2', name: '곰젤리 열차 2번', totalSeconds: 6 * 3600, remainingSeconds: 6 * 3600, isRunning: false, preset: true },
-      { id: 'train_3', name: '곰젤리 열차 3번', totalSeconds: 6 * 3600, remainingSeconds: 6 * 3600, isRunning: false, preset: true }, // 💡 추가됨
+      { id: 'train_3', name: '곰젤리 열차 3번', totalSeconds: 6 * 3600, remainingSeconds: 6 * 3600, isRunning: false, preset: true },
       { id: 'balloon', name: '곰젤리 열기구', totalSeconds: 5 * 3600 + 46 * 60, remainingSeconds: 5 * 3600 + 46 * 60, isRunning: false, preset: true },
       { id: 'beach', name: '앵무의 해변교역소', totalSeconds: 6 * 3600, remainingSeconds: 6 * 3600, isRunning: false, preset: true },
       { id: 'mine_explore', name: '광산 탐험', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
-      { id: 'mine_harvest_1', name: '광산 채굴 1번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true }, // 💡 6개로 확장
+      { id: 'mine_harvest_1', name: '광산 채굴 1번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true },
       { id: 'mine_harvest_2', name: '광산 채굴 2번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true },
       { id: 'mine_harvest_3', name: '광산 채굴 3번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true },
       { id: 'mine_harvest_4', name: '광산 채굴 4번', totalSeconds: 24 * 3600, remainingSeconds: 24 * 3600, isRunning: false, preset: true },
@@ -230,11 +229,9 @@
       const [cloudStatus, setCloudStatus] = useState('authenticating');
       const [toastMessage, setToastMessage] = useState('');
       
-      // 💡 모달 설정 상태창 복구 (고정 시간 직접 변경용 모달 결합)
       const [promptConfig, setPromptConfig] = useState({ isOpen: false, title: '', placeholder: '', value: '', onConfirm: null });
       const [inlineEditConfig, setInlineEditConfig] = useState({ isOpen: false, id: null, name: '', days: '0', hours: '0', minutes: '0' });
 
-      // 내부 캐싱 스테이트 로드
       const [dailyHomework, setDailyHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_daily_hw')) || INITIAL_DAILY);
       const [twelveHourHomework, setTwelveHourHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_12h_hw')) || INITIAL_TWELVE);
       const [weeklyHomework, setWeeklyHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_weekly_hw')) || INITIAL_WEEKLY);
@@ -263,13 +260,12 @@
         setTimeout(() => setToastMessage(''), 2500);
       }
 
-      // --- ⚙️ 실시간 엔진 무한 반복 루프 ---
+      // --- ⚙️ 실시간 카운트다운 루프 엔진 ---
       useEffect(() => {
         const interval = setInterval(() => {
           const currentTime = new Date();
           setNow(currentTime);
 
-          // 1. 가속 타이머 카운트다운 스케줄러 감소 연산
           setTimers(prevTimers => {
             let changed = false;
             const nextTimers = prevTimers.map(t => {
@@ -290,7 +286,6 @@
             return nextTimers;
           });
 
-          // 2. 퀵 타이머 카운트다운 연산
           setQuickTimer(prevQuick => {
             if (prevQuick.isRunning && prevQuick.remainingSeconds > 0) {
               const updatedSeconds = prevQuick.remainingSeconds - 1;
@@ -310,7 +305,6 @@
         return () => clearInterval(interval);
       }, [cloudStatus]);
 
-      // --- ⚡ 실시간 재화 시뮬레이터 연산 매핑 ---
       const computedCurrencies = currencies.map(c => {
         if (c.current >= c.max || !c.isActive) return { ...c, liveCurrent: c.current, secondsToNext: 0, secondsToFull: 0 };
         const msPerUnit = c.rechargeTimeMinutes * 60 * 1000;
@@ -340,7 +334,7 @@
             lastUpdatedTime: Date.now()
           }, { merge: true });
         } catch (e) {
-          print(e);
+          console.error(e);
         }
       }
 
@@ -355,7 +349,6 @@
         saveToCloud(updates);
       }
 
-      // 조작 제어 제어루틴
       function startTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: true } : t) }); }
       function pauseTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: false } : t) }); }
       function resetTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) }); }
@@ -381,7 +374,6 @@
         showToast("🎯 이름이 수정되었습니다.");
       }
 
-      // 💡 새 가속 타이머 추가 기능 복구 완료
       function handleAddCustomTimer(e) {
         e.preventDefault();
         if (!customTimerName.trim()) return;
@@ -401,7 +393,6 @@
 
       function handleDeleteTimer(id) { dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) }); }
 
-      // 💡 고정 시간 전용 직접 수정 인라인 모달 컨트롤러 복구 완료
       function openInlineEditModal(t) {
         const d = Math.floor(t.totalSeconds / 86400);
         const h = Math.floor((t.totalSeconds % 86400) / 3600);
@@ -418,7 +409,6 @@
         showToast("⚙️ 고정 기준 시간이 수정되었습니다.");
       }
 
-      // 재화 수정용 핸들러들 복구
       const handleUpdateCurrencyCurrent = (id, val) => {
         dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, current: parseInt(val) || 0, lastUpdated: Date.now() } : c) });
       };
@@ -460,7 +450,6 @@
         return () => unsubscribe();
       }, [user, syncCode]);
 
-      // 구조 렌더링용 변수들
       const dailyDoneCount = dailyHomework.filter(i => i.done).length;
       const twelveHourDoneCount = twelveHourHomework.filter(i => i.done).length;
       const weeklyDoneCount = weeklyHomework.filter(i => i.done).length;
@@ -488,6 +477,42 @@
         if (type === '12h') dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.filter(i => i.id !== id) });
         if (type === 'weekly') dispatchStateUpdate({ weeklyHomework: weeklyHomework.filter(i => i.id !== id) });
       };
+
+      // 💡 가속 센터 각 카드를 그려주는 공통 카드 서브 컴포넌트 구조 함수화
+      const renderTimerCard = (t) => (
+        <div key={t.id} className="bg-white rounded-2xl border p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-xs text-stone-800">{t.name}</span>
+              <button type="button" onClick={() => openInlineEditModal(t)} className="text-[9px] text-[#9B6F43] bg-amber-50 px-1.5 py-0.5 rounded font-black hover:bg-amber-100 transition-colors">고정시간 수정</button>
+            </div>
+            <div className="flex gap-1">
+              <button onClick={() => t.isRunning ? pauseTimer(t.id) : startTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-600">
+                {t.isRunning ? <PauseIcon /> : <PlayIcon />}
+              </button>
+              <button onClick={() => resetTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-400"><RefreshIcon /></button>
+            </div>
+          </div>
+          <div className="my-2.5">
+            <p className="font-mono text-sm font-black text-stone-900">{formatSeconds(t.remainingSeconds)} <span className="text-[10px] text-stone-400 font-normal">/ {formatSeconds(t.totalSeconds)}</span></p>
+          </div>
+          <div className="flex gap-1 pt-2 border-t text-[9px] font-bold overflow-x-auto">
+            <button type="button" onClick={() => accelerateTimer(t.id, 10)} className="bg-stone-50 border rounded-md px-1.5 py-0.5 shrink-0">-10분</button>
+            <button type="button" onClick={() => accelerateTimer(t.id, 30)} className="bg-stone-50 border rounded-md px-1.5 py-0.5 shrink-0">-30분</button>
+            <button type="button" onClick={() => accelerateTimer(t.id, 60)} className="bg-stone-50 border rounded-md px-1.5 py-0.5 shrink-0">-1시간</button>
+            <button type="button" onClick={() => {
+              setPromptConfig({
+                isOpen: true,
+                title: `⏱️ [${t.name}] 직접 시간 단축 처리`,
+                placeholder: "건너뛸 시간 입력 (분 단위 숫자)",
+                value: "10",
+                onConfirm: (val) => accelerateTimer(t.id, parseInt(val) || 0)
+              });
+            }} className="bg-stone-900 text-white rounded-md px-1.5 py-0.5 shrink-0">직접 입력</button>
+            {!t.preset && <button type="button" onClick={() => handleDeleteTimer(t.id)} className="bg-rose-50 text-rose-600 border border-rose-200 rounded-md px-1.5 py-0.5 ml-auto shrink-0">삭제</button>}
+          </div>
+        </div>
+      );
 
       return (
         <div className="min-h-screen bg-[#F9F7F4] text-[#2D2A26] antialiased pb-20 px-4 md:px-8">
@@ -596,7 +621,7 @@
                   </div>
                 </div>
 
-                {/* 💡 실시간 6종 충전식 재화 대시보드 완벽 복구 */}
+                {/* 6종 실시간 충전 재화 대시보드 */}
                 <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-3">
                   <span className="text-[10px] font-bold text-stone-400 block tracking-widest uppercase">⚡ REALTIME CURRENCY DASHBOARD</span>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -753,7 +778,7 @@
               </div>
             )}
 
-            {/* 3. 재화 설정 변경 패널 */}
+            {/* 3. 재화 세부 설정 패널 */}
             {activeTab === 'currency' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {computedCurrencies.map(c => (
@@ -785,67 +810,65 @@
               </div>
             )}
 
-            {/* 4. 가속 센터 (💡 고정 시간 수정 버튼 + 단축 프롬프트 및 신규 타이머 연동 완벽 작동) */}
+            {/* 4. 가속 센터 (💡 가속센터 UI 전면 개편 구조화 적용) */}
             {activeTab === 'timer' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-3xl border shadow-sm h-fit space-y-4">
-                  <h3 className="font-bold text-stone-900">➕ 새 가속 타이머 등록</h3>
-                  <form onSubmit={handleAddCustomTimer} className="space-y-3">
-                    <input type="text" placeholder="초시계 이름" value={customTimerName} onChange={e => setCustomTimerName(e.target.value)} className="w-full border text-xs p-3 rounded-xl focus:outline-none" />
-                    <div className="grid grid-cols-3 gap-1.5 text-xs font-bold">
-                      <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerDays} onChange={e => setCustomTimerDays(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50" /><span className="text-[10px] text-stone-400">일</span></div>
-                      <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerHours} onChange={e => setCustomTimerHours(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50" /><span className="text-[10px] text-stone-400">시간</span></div>
-                      <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerMinutes} onChange={e => setCustomTimerMinutes(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50" /><span className="text-[10px] text-stone-400">분</span></div>
+              <div className="space-y-8">
+                {/* ⭐️ 상단 고정 배치: 새 가속 타이머 등록 대시보드 */}
+                <div className="bg-white p-6 rounded-3xl border shadow-sm max-w-xl">
+                  <h3 className="font-black text-stone-900 text-sm mb-4">⚙️ 새 가속 타이머 직접 등록</h3>
+                  <form onSubmit={handleAddCustomTimer} className="space-y-4">
+                    <input type="text" placeholder="초시계 이름 (예: 연구소 가속, 쿠키 승급 등)" value={customTimerName} onChange={e => setCustomTimerName(e.target.value)} className="w-full border text-xs p-3 rounded-xl focus:outline-none bg-stone-50 font-bold" />
+                    <div className="grid grid-cols-3 gap-2 text-xs font-bold">
+                      <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerDays} onChange={e => setCustomTimerDays(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">일</span></div>
+                      <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerHours} onChange={e => setCustomTimerHours(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">시간</span></div>
+                      <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerMinutes} onChange={e => setCustomTimerMinutes(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">분</span></div>
                     </div>
-                    <button type="submit" className="w-full bg-stone-900 text-white text-xs font-bold py-3 rounded-xl">타이머 등록</button>
+                    <button type="submit" className="w-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold py-3 rounded-xl transition-colors">새 타이머 목록에 추가</button>
                   </form>
                 </div>
 
-                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {timers.map(t => (
-                    <div key={t.id} className="bg-white rounded-3xl border p-4 shadow-sm flex flex-col justify-between">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-xs text-stone-800">{t.name}</span>
-                          {/* 💡 고정 시간 설정 수동 수정 기입용 트리거 버튼 복구 완료! */}
-                          <button type="button" onClick={() => openInlineEditModal(t)} className="text-[10px] text-[#9B6F43] bg-amber-50 px-1.5 py-0.5 rounded font-black hover:bg-amber-100 transition-colors">고정시간 수정</button>
-                        </div>
-                        <div className="flex gap-1">
-                          <button onClick={() => t.isRunning ? pauseTimer(t.id) : startTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-600">
-                            {t.isRunning ? <PauseIcon /> : <PlayIcon />}
-                          </button>
-                          <button onClick={() => resetTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-400"><RefreshIcon /></button>
-                        </div>
-                      </div>
-                      <div className="my-3">
-                        <p className="font-mono text-base font-black text-stone-900">{formatSeconds(t.remainingSeconds)} <span className="text-xs text-stone-400 font-normal">/ {formatSeconds(t.totalSeconds)}</span></p>
-                      </div>
-                      <div className="flex gap-1 mt-2 pt-2 border-t text-[9px] font-bold overflow-x-auto">
-                        <button type="button" onClick={() => accelerateTimer(t.id, 10)} className="bg-stone-50 border rounded-md px-2 py-1 shrink-0">-10분</button>
-                        <button type="button" onClick={() => accelerateTimer(t.id, 30)} className="bg-stone-50 border rounded-md px-2 py-1 shrink-0">-30분</button>
-                        <button type="button" onClick={() => accelerateTimer(t.id, 60)} className="bg-stone-50 border rounded-md px-2 py-1 shrink-0">-1시간</button>
-                        
-                        {/* 💡 분단위를 직접 써서 단축하는 프롬프트 창 완벽 구동 */}
-                        <button type="button" onClick={() => {
-                          setPromptConfig({
-                            isOpen: true,
-                            title: `⏱️ [${t.name}] 직접 시간 단축 처리`,
-                            placeholder: "건너뛸 시간 입력 (분 단위 숫자)",
-                            value: "10",
-                            onConfirm: (val) => accelerateTimer(t.id, parseInt(val) || 0)
-                          });
-                        }} className="bg-stone-900 text-white rounded-md px-2 py-1 shrink-0">직접 입력</button>
-                        
-                        {!t.preset && <button type="button" onClick={() => handleDeleteTimer(t.id)} className="bg-rose-50 text-rose-600 border border-rose-200 rounded-md px-2 py-1 ml-auto shrink-0">삭제</button>}
-                      </div>
+                {/* 🚂 분류 1: 곰젤리 열차 전용 섹션 */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🚂 곰젤리 열차 모니터링</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {timers.filter(t => t.id.startsWith('train_')).map(t => renderTimerCard(t))}
+                  </div>
+                </div>
+
+                {/* ⛏️ 분류 2: 광산 채굴 전용 섹션 */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">⛏️ 납작이 광산 채굴 현황 (6배수 확장)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {timers.filter(t => t.id.startsWith('mine_harvest_')).map(t => renderTimerCard(t))}
+                  </div>
+                </div>
+
+                {/* 📦 분류 3: 왕국 기본 고정 콘텐츠 섹션 */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🏰 왕국 주요 기본 콘텐츠 초시계</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {timers.filter(t => t.preset && !t.id.startsWith('train_') && !t.id.startsWith('mine_harvest_')).map(t => renderTimerCard(t))}
+                  </div>
+                </div>
+
+                {/* ➕ 분류 4: 사용자가 새로 만든 커스텀 가속 타이머 모음 */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-black text-amber-800 flex items-center gap-1.5">➕ 내가 등록한 커스텀 추가 타이머 목록</h4>
+                  {timers.filter(t => !t.preset).length === 0 ? (
+                    <div className="text-center py-6 bg-stone-100/50 rounded-2xl border border-dashed border-stone-200 text-xs text-stone-400 font-bold max-w-md">
+                      상단 등록창에서 추가한 커스텀 타이머가 여기에 정렬됩니다.
                     </div>
-                  ))}
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {timers.filter(t => !t.preset).map(t => renderTimerCard(t))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
           </main>
 
-          {/* 💡 직접 분단위 기입 단축 프롬프트 수동 입력 모달창 복구 완료 */}
+          {/* 직접 입력 단축 분단위 삭감 팝업 모달 */}
           {promptConfig.isOpen && (
             <div className="fixed inset-0 z-[200] bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
@@ -859,7 +882,7 @@
             </div>
           )}
 
-          {/* 💡 고정 기준 지정시간 수동 교체 전용 모달창 컴포넌트 추가 복구 완료! */}
+          {/* 고정 시간 직접 변경 팝업 모달 */}
           {inlineEditConfig.isOpen && (
             <div className="fixed inset-0 z-[200] bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
