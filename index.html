@@ -168,7 +168,7 @@
         const nextOpenHour = (currentPeriodHour + 2) % 24;
         let targetDate = new Date(now);
         targetDate.setHours(nextOpenHour, 0, 0, 0);
-        if (nextOpenHour <= hour) targetDate.setDate(targetDate.setDate() + 1);
+        if (nextOpenHour <= hour) targetDate.setDate(targetDate.getDate() + 1);
         const diffMs = targetDate.getTime() - now.getTime();
         const diffHr = Math.floor(diffMs / 3600000);
         const diffMin = Math.floor((diffMs % 3600000) / 60000);
@@ -314,11 +314,9 @@
       };
 
       const triggerNotification = (title, body) => {
-        // 💡 1순위: 파이썬 프로그램(pywebview) 환경인 경우 파이썬 기본 알림창 가동
         if (window.pywebview && window.pywebview.api && window.pywebview.api.notify) {
           window.pywebview.api.notify(title, body);
         } else if ("Notification" in window) {
-          // 💡 2순위 백업: 일반 브라우저 표준 알림 시스템 가동
           if (Notification.permission === "granted") {
             new Notification(title, { body });
           } else if (Notification.permission !== "denied") {
@@ -330,7 +328,7 @@
         showToast(`🔔 ${title} : ${body}`);
       };
 
-      // --- 🔐 파이어베이스 익명 로그인 연동 (로컬 고정 해결 문제 해결) ---
+      // --- 🔐 파이어베이스 익명 로그인 연동 ---
       useEffect(() => {
         signInAnonymously(auth)
           .catch(e => {
@@ -341,7 +339,7 @@
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
           if (currentUser) {
             setUser(currentUser);
-            setCloudStatus('connected'); // 연결 완료 상태로 전환 -> CLOUD LIVE 표시됨
+            setCloudStatus('connected');
           } else {
             setUser(null);
             setCloudStatus('disconnected');
@@ -351,7 +349,66 @@
         return () => unsubscribe();
       }, []);
 
-      // --- ⚙️ 실시간 카운트다운 루프 엔진 (백그라운드/오프라인 대응형) ---
+      // --- 📡 [핵심 수정] 실시간 클라우드 데이터 수신 및 오프라인 경과시간 보정 엔진 ---
+      useEffect(() => {
+        if (!user || cloudStatus !== 'connected') return;
+
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kingdoms', syncCode);
+        const unsubscribeSnapshot = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const cloudData = docSnap.data();
+            
+            // 1. 단순 텍스트 / 불리언 상태는 실시간으로 즉시 동기화 매핑
+            if (cloudData.dailyHomework) { setDailyHomework(cloudData.dailyHomework); localStorage.setItem('crk_local_daily_hw', JSON.stringify(cloudData.dailyHomework)); }
+            if (cloudData.twelveHourHomework) { setTwelveHourHomework(cloudData.twelveHourHomework); localStorage.setItem('crk_local_12h_hw', JSON.stringify(cloudData.twelveHourHomework)); }
+            if (cloudData.weeklyHomework) { setWeeklyHomework(cloudData.weeklyHomework); localStorage.setItem('crk_local_weekly_hw', JSON.stringify(cloudData.weeklyHomework)); }
+            if (cloudData.currencies) { setCurrencies(cloudData.currencies); localStorage.setItem('crk_local_currencies', JSON.stringify(cloudData.currencies)); }
+            if (cloudData.postOfficeClaims) { setPostOfficeClaims(cloudData.postOfficeClaims); localStorage.setItem('crk_local_claims', JSON.stringify(cloudData.postOfficeClaims)); }
+            
+            // 2. 시간(Timer) 관련 재화는 다른 기기에서 수령하고 지난 기간(오프라인 갭)을 동기화 시점에 정밀 계산
+            if (cloudData.lastUpdatedTime) {
+              const cloudOfflineSec = Math.floor((Date.now() - cloudData.lastUpdatedTime) / 1000);
+              
+              // 두 창이 동시에 켜져 있을 때 발생하는 핑(Ping) 꼬임 방지를 위해 5초 이상의 시간 갭이 존재할 때만 보정 차감 적용
+              if (cloudOfflineSec > 5) {
+                if (cloudData.timers) {
+                  const adjustedTimers = cloudData.timers.map(t => t.isRunning && t.remainingSeconds > 0 
+                    ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - cloudOfflineSec) } 
+                    : t
+                  );
+                  setTimers(adjustedTimers);
+                  localStorage.setItem('crk_local_timers', JSON.stringify(adjustedTimers));
+                }
+                if (cloudData.fountainTime) {
+                  const adjustedFountain = cloudData.fountainTime.isRunning 
+                    ? { ...cloudData.fountainTime, elapsedSeconds: Math.min(28800, cloudData.fountainTime.elapsedSeconds + cloudOfflineSec) }
+                    : cloudData.fountainTime;
+                  setFountainTime(adjustedFountain);
+                  localStorage.setItem('crk_local_fountain', JSON.stringify(adjustedFountain));
+                }
+                if (cloudData.quickTimer) {
+                  const adjustedQuick = cloudData.quickTimer.isRunning
+                    ? { ...cloudData.quickTimer, remainingSeconds: Math.max(0, cloudData.quickTimer.remainingSeconds - cloudOfflineSec), isRunning: Math.max(0, cloudData.quickTimer.remainingSeconds - cloudOfflineSec) > 0 }
+                    : cloudData.quickTimer;
+                  setQuickTimer(adjustedQuick);
+                  localStorage.setItem('crk_local_quick_timer', JSON.stringify(adjustedQuick));
+                }
+              } else {
+                // 실시간 동기화 상태일 때는 그대로 안전하게 덮어쓰기 진행
+                if (cloudData.timers) { setTimers(cloudData.timers); localStorage.setItem('crk_local_timers', JSON.stringify(cloudData.timers)); }
+                if (cloudData.fountainTime) { setFountainTime(cloudData.fountainTime); localStorage.setItem('crk_local_fountain', JSON.stringify(cloudData.fountainTime)); }
+                if (cloudData.quickTimer) { setQuickTimer(cloudData.quickTimer); localStorage.setItem('crk_local_quick_timer', JSON.stringify(cloudData.quickTimer)); }
+              }
+            }
+          }
+        }, (error) => {
+          console.error("클라우드 서버 동기화 로드 실패:", error);
+        });
+
+        return () => unsubscribeSnapshot();
+      }, [user, cloudStatus, syncCode]);
+
+      // --- ⚙️ 실시간 카운트다운 루프 엔진 ---
       useEffect(() => {
         localStorage.setItem('crk_last_active', Date.now().toString());
 
@@ -521,7 +578,6 @@
         if (type === 'weekly') dispatchStateUpdate({ weeklyHomework: weeklyHomework.filter(i => i.id !== id) });
       }
 
-      // 일괄 완료/해제 처리 함수
       function handleBulkCheck(type, doneStatus) {
         if (type === 'daily') {
           dispatchStateUpdate({ dailyHomework: dailyHomework.map(h => ({ ...h, done: doneStatus })) });
@@ -720,7 +776,7 @@
           <header className="max-w-7xl mx-auto pt-10 pb-6 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-stone-200">
             <div>
               <h1 className="text-2xl font-black flex items-center gap-2 text-stone-900 tracking-tight">
-                🍪 쿠키런: 킹덤 올인원 플래이너
+                🍪 쿠키런: 킹덤 올인원 플래너
                 {cloudStatus === 'connected' ? (
                   <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full uppercase font-black">CLOUD LIVE</span>
                 ) : (
@@ -899,7 +955,7 @@
                   <div className="lg:col-span-7 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 block tracking-widest uppercase">⌛ URGENT MONITOR</span>
-                      <p className="text-xs text-amber-800 mt-1">마지막시간 5분 미만 또는 수령 대기중인 타이머 목록</p>
+                      <p className="text-xs text-amber-800 mt-1">남은시간 5분 미만 또는 수령 대기중인 타이머 목록</p>
                     </div>
                     <div className="flex-1 mt-4">
                       {timers.filter(t => t.remainingSeconds <= 300).length === 0 ? (
@@ -971,10 +1027,7 @@
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col">
                   <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between">🌅 일일 숙제 <span className="font-mono text-xs text-rose-600">{getCountdownToMidnight(now)}</span></h3>
-                  <div className="flex gap-1 py-2 border-b">
-                    <button type="button" onClick={() => handleBulkCheck('daily', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체완료</button>
-                    <button type="button" onClick={() => handleBulkCheck('daily', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체해제</button>
-                  </div>
+                  <div className="flex gap-1 py-2 border-b"><button onClick={() => handleBulkCheck('daily', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체완료</button><button onClick={() => handleBulkCheck('daily', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체해제</button></div>
                   <form onSubmit={e => handleAddTask('daily', e)} className="flex gap-2 py-3"><input type="text" placeholder="+ 새 숙제 등록" value={newDailyName} onChange={e => setNewDailyName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none" /><button type="submit" className="bg-stone-900 text-white rounded-xl px-3">+</button></form>
                   <div className="space-y-2 max-h-[380px] overflow-y-auto">
                     {getSortedHomework(dailyHomework).map(item => (
@@ -988,10 +1041,7 @@
 
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col">
                   <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between">⚔️ 12시간 숙제 <span className="font-mono text-xs text-rose-600">{getCountdownToTwelveHour(now)}</span></h3>
-                  <div className="flex gap-1 py-2 border-b">
-                    <button type="button" onClick={() => handleBulkCheck('12h', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체완료</button>
-                    <button type="button" onClick={() => handleBulkCheck('12h', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체해제</button>
-                  </div>
+                  <div className="flex gap-1 py-2 border-b"><button onClick={() => handleBulkCheck('12h', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체완료</button><button onClick={() => handleBulkCheck('12h', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체해제</button></div>
                   <form onSubmit={e => handleAddTask('12h', e)} className="flex gap-2 py-3"><input type="text" placeholder="+ 새 숙제 등록" value={newTwelveName} onChange={e => setNewTwelveName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none" /><button type="submit" className="bg-stone-900 text-white rounded-xl px-3">+</button></form>
                   <div className="space-y-2 max-h-[380px] overflow-y-auto">
                     {getSortedHomework(twelveHourHomework).map(item => (
@@ -1005,10 +1055,7 @@
 
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col">
                   <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between">🛡️ 주간 숙제 <span className="font-mono text-xs text-rose-600">{getCountdownToThursday(now)}</span></h3>
-                  <div className="flex gap-1 py-2 border-b">
-                    <button type="button" onClick={() => handleBulkCheck('weekly', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체완료</button>
-                    <button type="button" onClick={() => handleBulkCheck('weekly', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체해제</button>
-                  </div>
+                  <div className="flex gap-1 py-2 border-b"><button onClick={() => handleBulkCheck('weekly', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체완료</button><button onClick={() => handleBulkCheck('weekly', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체해제</button></div>
                   <form onSubmit={e => handleAddTask('weekly', e)} className="flex gap-2 py-3"><input type="text" placeholder="+ 새 숙제 등록" value={newWeeklyName} onChange={e => setNewWeeklyName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none" /><button type="submit" className="bg-stone-900 text-white rounded-xl px-3">+</button></form>
                   <div className="space-y-2 max-h-[380px] overflow-y-auto">
                     {getSortedHomework(weeklyHomework).map(item => (
