@@ -530,7 +530,7 @@
       // 우체국 상태 계산 변수 정의
       const postOfficeStatus = getPostOfficeStatus(now);
 
-      // 숙제 프로그레스 패널 변수 계산 정의 (🛠️ 오타 완벽 수정됨)
+      // 숙제 프로그레스 패널 변수 계산 정의
       const dailyDoneCount = dailyHomework.filter(h => h.done).length;
       const twelveHourDoneCount = twelveHourHomework.filter(h => h.done).length;
       const weeklyDoneCount = weeklyHomework.filter(h => h.done).length;
@@ -682,6 +682,7 @@
 
       function handleDeleteTimer(id) { dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) }); }
 
+      // 모달 편집창 열기
       function openInlineEditModal(t, editMode = 'delay') {
         if (editMode === 'train') {
           const h = Math.floor(t.remainingSeconds / 3600);
@@ -834,6 +835,19 @@
                 <span className="font-mono text-sm font-black text-stone-800">{syncCode}</span>
               </div>
               <button onClick={() => { windowcopyToClipboard(syncCode); showToast("📋 코드가 복사되었습니다!"); }} className="bg-stone-900 text-white text-xs px-4 py-3 rounded-xl font-bold">코드 복사</button>
+              
+              {/* 🛠️ [실시간 연동용 신규 입력 버튼 탑재] */}
+              <button onClick={() => {
+                const newCode = prompt("연동할 다른 기기나 브라우저의 SYNC CODE를 입력하세요 (예: CRK-XXXXXX):");
+                if (newCode && newCode.trim().toUpperCase().startsWith("CRK-")) {
+                  const cleaned = newCode.trim().toUpperCase();
+                  localStorage.setItem('crk_sync_code_v4', cleaned);
+                  showToast("🔄 동기화 코드가 매칭되었습니다! 데이터를 가져옵니다...");
+                  setTimeout(() => window.location.reload(), 1000);
+                } else if (newCode) {
+                  alert("형식이 올바르지 않습니다. 'CRK-'로 시작하는 전체 코드를 정확히 입력해주세요.");
+                }
+              }} className="bg-amber-600 hover:bg-amber-700 text-white text-xs px-4 py-3 rounded-xl font-bold transition-colors">코드 입력(연동)</button>
             </div>
           </header>
 
