@@ -276,24 +276,40 @@
         showToast(`🔔 ${title} : ${body}`);
       };
 
-      // 💾 파이썬 로컬 저장소 캐시 로드
+      // 💾 [자동 연동 추적 코어 엔진 패치] 파이썬 로컬 엔진 완전 구동 대기 후 데이터 동기화
       useEffect(() => {
-        if (window.pywebview && window.pywebview.api && window.pywebview.api.load_local_data) {
-          window.pywebview.api.load_local_data().then(strData => {
-            if (strData) {
-              const cloudData = JSON.parse(strData);
-              if (cloudData.dailyHomework) setDailyHomework(cloudData.dailyHomework);
-              if (cloudData.twelveHourHomework) setTwelveHourHomework(cloudData.twelveHourHomework);
-              if (cloudData.weeklyHomework) setWeeklyHomework(cloudData.weeklyHomework);
-              if (cloudData.currencies) setCurrencies(cloudData.currencies);
-              if (cloudData.timers) setTimers(cloudData.timers);
-              if (cloudData.postOfficeClaims) setPostOfficeClaims(cloudData.postOfficeClaims);
-              if (cloudData.fountainTime) setFountainTime(cloudData.fountainTime);
-              if (cloudData.quickTimer) setQuickTimer(cloudData.quickTimer);
-              if (cloudData.syncCode) { setSyncCode(cloudData.syncCode); localStorage.setItem('crk_sync_code_v4', cloudData.syncCode); }
-            }
-          });
+        const loadPythonData = () => {
+          if (window.pywebview && window.pywebview.api && window.pywebview.api.load_local_data) {
+            window.pywebview.api.load_local_data().then(strData => {
+              if (strData) {
+                try {
+                  const cloudData = JSON.parse(strData);
+                  if (cloudData.syncCode) { 
+                    setSyncCode(cloudData.syncCode); 
+                    localStorage.setItem('crk_sync_code_v4', cloudData.syncCode); 
+                  }
+                  if (cloudData.dailyHomework) setDailyHomework(cloudData.dailyHomework);
+                  if (cloudData.twelveHourHomework) setTwelveHourHomework(cloudData.twelveHourHomework);
+                  if (cloudData.weeklyHomework) setWeeklyHomework(cloudData.weeklyHomework);
+                  if (cloudData.currencies) setCurrencies(cloudData.currencies);
+                  if (cloudData.timers) setTimers(cloudData.timers);
+                  if (cloudData.postOfficeClaims) setPostOfficeClaims(cloudData.postOfficeClaims);
+                  if (cloudData.fountainTime) setFountainTime(cloudData.fountainTime);
+                  if (cloudData.quickTimer) setQuickTimer(cloudData.quickTimer);
+                  showToast("💾 저장된 데이터방 코드로 완전 자동 영구 연동 완료!");
+                } catch(e) { console.error("로컬 캐시 불러오기 오류: ", e); }
+              }
+            });
+          }
+        };
+
+        // 핵심 수정: 파이썬 API 객체 주입 완료 이벤트를 가드하여 켜질 때 100% 자동 로드 보장
+        if (window.pywebview && window.pywebview.api) {
+          loadPythonData();
+        } else {
+          window.addEventListener('pywebviewready', loadPythonData);
         }
+        return () => window.removeEventListener('pywebviewready', loadPythonData);
       }, []);
 
       useEffect(() => {
@@ -310,7 +326,7 @@
         if (!syncCode) return;
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kingdoms', syncCode);
         const unsubscribeSnapshot = onSnapshot(docRef, { includeMetadataChanges: true }, (docSnap) => {
-          if (docSnap.metadata.hasPendingWrites) return; // 역류 방지 가드
+          if (docSnap.metadata.hasPendingWrites) return; 
           if (docSnap.exists()) {
             const cloudData = docSnap.data();
             if (cloudData.dailyHomework) { setDailyHomework(cloudData.dailyHomework); localStorage.setItem('crk_local_daily_hw', JSON.stringify(cloudData.dailyHomework)); }
@@ -320,8 +336,6 @@
             
             if (cloudData.lastUpdatedTime) {
               const cloudOfflineSec = Math.floor((Date.now() - cloudData.lastUpdatedTime) / 1000);
-              
-              // 💡 핵심 픽스: 네트워크 전송 속도 때문에 발생하는 수 초 단위의 지연 오차까지 무조건 보정 처리 계산 적용
               const networkDelay = cloudOfflineSec > 0 ? cloudOfflineSec : 0;
               
               if (cloudData.currencies) {
@@ -353,7 +367,7 @@
         return () => unsubscribeSnapshot();
       }, [syncCode]);
 
-      // --- ⚙️ 실시간 고정 스탬프 타임라인 카운트다운 엔진 ---
+      // --- ⚙️ 실시간 고정 타임라인 카운트다운 엔진 ---
       useEffect(() => {
         let lastTickTime = Date.now();
         localStorage.setItem('crk_last_active', lastTickTime.toString());
@@ -362,7 +376,6 @@
           const currentTime = new Date(); setNow(currentTime);
 
           const nowMs = Date.now();
-          // 정밀 오차 보정: 소수점이 손실되지 않도록 실제 흘러간 절대 시간을 정확히 체크
           const deltaSeconds = Math.floor((nowMs - lastTickTime) / 1000);
           if (deltaSeconds <= 0) return;
           
@@ -415,7 +428,7 @@
             if (prev.isRunning && prev.remainingSeconds > 0) {
               const updated = Math.max(0, prev.remainingSeconds - deltaSeconds);
               const next = { ...prev, remainingSeconds: updated };
-              if (updated === 0) { triggerNotification("🎯 퀵 타이머 완료!", `[${prevQuick.name}] 설정 시간이 끝났습니다.`); next.isRunning = false; }
+              if (updated === 0) { triggerNotification("🎯 퀵 타이머 완료!", `[${prev.name}] 설정 시간이 끝났습니다.`); next.isRunning = false; }
               localStorage.setItem('crk_local_quick_timer', JSON.stringify(next));
               return next;
             }
@@ -434,6 +447,7 @@
       const totalTasks = dailyHomework.length + twelveHourHomework.length + weeklyHomework.length;
       const totalProgressPercent = totalTasks > 0 ? Math.round((totalCompletedTasks / totalTasks) * 100) : 0;
 
+      // 조작 제어 핸들러
       function handleToggleCurrencyActive(id) { dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c) }); }
       function handleUpdateCurrencyCurrent(id, value) { dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, current: parseInt(value) || 0 } : c) }); }
       function handleUpdateCurrencyMax(id, value) { dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, max: parseInt(value) || 0 } : c) }); }
@@ -616,18 +630,29 @@
 
       return (
         <div className="min-h-screen bg-[#F9F7F4] text-[#2D2A26] antialiased pb-20 px-4 md:px-8">
-          {toastMessage && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[150] bg-stone-900 text-white px-5 py-3 rounded-2xl shadow-xl font-bold animate-bounce text-sm">{toastMessage}</div>}
+          {toastMessage && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[150] bg-stone-900 text-white px-5 py-3 rounded-2xl shadow-xl font-bold text-sm">{toastMessage}</div>}
 
           <header className="max-w-7xl mx-auto pt-10 pb-6 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-stone-200">
             <h1 className="text-2xl font-black flex items-center gap-2">🍪 쿠키런: 킹덤 올인원 플래너 <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">연동 활성화</span></h1>
             <div className="flex gap-2 items-center">
               <div className="bg-white px-4 py-2 border rounded-xl shadow-sm"><span className="text-[9px] font-bold text-stone-400 block">SYNC CODE</span><span className="font-mono text-sm font-black text-stone-800">{syncCode}</span></div>
               <button onClick={() => { windowcopyToClipboard(syncCode); showToast("📋 코드가 복사되었습니다!"); }} className="bg-stone-900 text-white text-xs px-4 py-3 rounded-xl font-bold">코드 복사</button>
+              
+              {/* 🛠️ 핵심 픽스: 코드 입력 즉시 파이썬 백엔드 파일 시스템에도 영구 박제시킴 */}
               <button onClick={() => {
-                const newCode = prompt("연동할 다른 디바이스의 SYNC CODE를 입력하세요:");
+                const newCode = prompt("연동할 다른 디바이스의 SYNC CODE를 입력하세요 (예: CRK-XXXXXX):");
                 if (newCode && newCode.trim().toUpperCase().startsWith("CRK-")) {
                   const cleaned = newCode.trim().toUpperCase();
-                  localStorage.clear(); localStorage.setItem('crk_sync_code_v4', cleaned); window.location.reload();
+                  localStorage.setItem('crk_sync_code_v4', cleaned);
+                  setSyncCode(cleaned);
+                  
+                  if (window.pywebview && window.pywebview.api && window.pywebview.api.save_local_data) {
+                    const pack = { ...stateRef.current, syncCode: cleaned };
+                    window.pywebview.api.save_local_data(JSON.stringify(pack));
+                  }
+                  
+                  showToast("🔄 영구 연동 코드가 백엔드 파일에 저장되었습니다! 적용을 위해 1초 뒤 자동 새로고침합니다.");
+                  setTimeout(() => window.location.reload(), 1000);
                 }
               }} className="bg-amber-600 text-white text-xs px-4 py-3 rounded-xl font-bold">코드 입력(연동)</button>
             </div>
@@ -643,20 +668,11 @@
             </div>
           </nav>
 
-          <nav className="max-w-7xl mx-auto mt-6 sticky top-4 z-50">
-            <div className="bg-white/80 backdrop-blur-xl border p-1.5 rounded-2xl shadow-md max-w-xl mx-auto">
-              <div className="grid grid-cols-4 gap-1">
-                {[['dashboard', '📊 대시보드'], ['homework', '📅 숙제 패널'], ['currency', '⚡ 재화 설정'], ['timer', '⏳ 가속 센터']].map(([id, label]) => (
-                  <button key={id} onClick={() => setActiveTab(id)} className={`py-2 text-xs font-bold rounded-xl transition-all ${activeTab === id ? 'bg-stone-900 text-white shadow-md' : 'text-stone-600 hover:bg-stone-100'}`}>{label}</button>
-                ))}
-              </div>
-            </div>
-          </nav>
-
           <main className="max-w-7xl mx-auto mt-8">
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* 우체국 */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 block tracking-widest">📮 POST OFFICE MONITOR</span>
@@ -670,6 +686,7 @@
                     </div>
                   </div>
 
+                  {/* 풍요의 분수 */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-amber-200 bg-amber-50/10 shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-black text-amber-700 tracking-widest uppercase block">Fountain of Plenty</span>
@@ -684,6 +701,7 @@
                     </div>
                   </div>
 
+                  {/* 숙제 현황 */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 block">📊 PROGRESS PANEL</span>
@@ -697,6 +715,7 @@
                   </div>
                 </div>
 
+                {/* 6종 재화 대시보드 */}
                 <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-3">
                   <span className="text-[10px] font-bold text-stone-400 block">⚡ REALTIME CURRENCY DASHBOARD</span>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -710,6 +729,7 @@
                   </div>
                 </div>
 
+                {/* 리셋 타이머 */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                   <div className="lg:col-span-5 bg-white p-6 rounded-3xl border shadow-sm space-y-4 flex flex-col justify-center">
                     <span className="text-[10px] font-bold text-stone-400 block">⏰ RESETS TIMER</span>
@@ -739,6 +759,7 @@
                   </div>
                 </div>
 
+                {/* 퀵 타이머 */}
                 <div className="bg-gradient-to-tr from-[#F2ECE4] to-white p-6 rounded-3xl border shadow-sm">
                   <div className="flex flex-col lg:flex-row justify-between gap-6 items-center">
                     <div className="space-y-2 flex-1 w-full">
@@ -774,6 +795,7 @@
               </div>
             )}
 
+            {/* 2. 숙제 패널 */}
             {activeTab === 'homework' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
@@ -838,6 +860,7 @@
               </div>
             )}
 
+            {/* 3. 재화 설정 패널 */}
             {activeTab === 'currency' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {computedCurrencies.map(c => {
@@ -879,6 +902,7 @@
               </div>
             )}
 
+            {/* 4. 가속 센터 탭 */}
             {activeTab === 'timer' && (
               <div className="space-y-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border shadow-sm max-w-4xl">
