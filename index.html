@@ -168,7 +168,7 @@
         const nextOpenHour = (currentPeriodHour + 2) % 24;
         let targetDate = new Date(now);
         targetDate.setHours(nextOpenHour, 0, 0, 0);
-        if (nextOpenHour <= hour) targetDate.setDate(targetDate.getDate() + 1);
+        if (nextOpenHour <= hour) targetDate.setDate(targetDate.setDate() + 1);
         const diffMs = targetDate.getTime() - now.getTime();
         const diffHr = Math.floor(diffMs / 3600000);
         const diffMin = Math.floor((diffMs % 3600000) / 60000);
@@ -210,13 +210,14 @@
       { id: 202, name: '킹덤 아레나 리그 참여', done: false, important: true, memo: '' },
       { id: 203, name: '증명의 전장 완료', done: false, important: false, memo: '' }
     ];
+    // 🛠️ 버그 픽스: 구조 단순화를 위해 타임스탬프 방식에서 차감 초(Seconds) 연동 엔진으로 교체
     const INITIAL_CURRENCIES = [
-      { id: 'stamina_normal', name: '일반 스태미너', current: 50, max: 100, rechargeTimeMinutes: 5, isActive: true, lastUpdated: Date.now(), nextUnitRemSeconds: 300 },
-      { id: 'stamina_thick', name: '두툼한 스태미너', current: 20, max: 50, rechargeTimeMinutes: 10, isActive: true, lastUpdated: Date.now(), nextUnitRemSeconds: 600 },
-      { id: 'stamina_destiny', name: '운명의 스태미너', current: 10, max: 30, rechargeTimeMinutes: 18, isActive: true, lastUpdated: Date.now(), nextUnitRemSeconds: 1080 },
-      { id: 'arena', name: '아레나 티켓', current: 4, max: 8, rechargeTimeMinutes: 60, isActive: true, lastUpdated: Date.now(), nextUnitRemSeconds: 3600 },
-      { id: 'arcade_arena', name: '아케이드 아레나', current: 5, max: 10, rechargeTimeMinutes: 120, isActive: true, lastUpdated: Date.now(), nextUnitRemSeconds: 7200 },
-      { id: 'alliance', name: '수호의 성전', current: 2, max: 6, rechargeTimeMinutes: 720, isActive: true, lastUpdated: Date.now(), nextUnitRemSeconds: 43200 }
+      { id: 'stamina_normal', name: '일반 스태미너', current: 50, max: 100, rechargeTimeMinutes: 5, isActive: true, remainingSeconds: 300 },
+      { id: 'stamina_thick', name: '두툼한 스태미너', current: 20, max: 50, rechargeTimeMinutes: 10, isActive: true, remainingSeconds: 600 },
+      { id: 'stamina_destiny', name: '운명의 스태미너', current: 10, max: 30, rechargeTimeMinutes: 18, isActive: true, remainingSeconds: 1080 },
+      { id: 'arena', name: '아레나 티켓', current: 4, max: 8, rechargeTimeMinutes: 60, isActive: true, remainingSeconds: 3600 },
+      { id: 'arcade_arena', name: '아케이드 아레나', current: 5, max: 10, rechargeTimeMinutes: 120, isActive: true, remainingSeconds: 7200 },
+      { id: 'alliance', name: '수호의 성전', current: 2, max: 6, rechargeTimeMinutes: 720, isActive: true, remainingSeconds: 43200 }
     ];
     const DEFAULT_TIMERS = [
       { id: 'dock', name: '선착장 보상', totalSeconds: 8 * 3600, remainingSeconds: 8 * 3600, isRunning: false, preset: true },
@@ -262,7 +263,22 @@
       const [dailyHomework, setDailyHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_daily_hw')) || INITIAL_DAILY);
       const [twelveHourHomework, setTwelveHourHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_12h_hw')) || INITIAL_TWELVE);
       const [weeklyHomework, setWeeklyHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_weekly_hw')) || INITIAL_WEEKLY);
-      const [currencies, setCurrencies] = useState(() => JSON.parse(localStorage.getItem('crk_local_currencies')) || INITIAL_CURRENCIES);
+      
+      const [currencies, setCurrencies] = useState(() => {
+        const local = JSON.parse(localStorage.getItem('crk_local_currencies')) || INITIAL_CURRENCIES;
+        if (offlineSec > 0) {
+          return local.map(c => {
+            if (!c.isActive || c.current >= c.max) return c;
+            let rem = (c.remainingSeconds !== undefined ? c.remainingSeconds : c.rechargeTimeMinutes * 60) - offlineSec;
+            let cur = c.current;
+            const step = c.rechargeTimeMinutes * 60;
+            while (rem <= 0 && cur < c.max) { cur += 1; rem += step; }
+            if (cur >= c.max) rem = step;
+            return { ...c, current: cur, remainingSeconds: rem };
+          });
+        }
+        return local;
+      });
       
       const [timers, setTimers] = useState(() => {
         const local = JSON.parse(localStorage.getItem('crk_local_timers')) || DEFAULT_TIMERS;
@@ -276,13 +292,15 @@
       });
       const [postOfficeClaims, setPostOfficeClaims] = useState(() => JSON.parse(localStorage.getItem('crk_local_claims')) || { date: new Date().toDateString(), claims: [false, false, false] });
       
+      // ⛲ 풍요의 분수 대시보드 2단계 가동용 구조 복구 (기본 정지 상태 시작)
       const [fountainTime, setFountainTime] = useState(() => {
-        const local = JSON.parse(localStorage.getItem('crk_local_fountain')) || { elapsedSeconds: 0, isRunning: true };
+        const local = JSON.parse(localStorage.getItem('crk_local_fountain')) || { elapsedSeconds: 0, isRunning: false };
         if (offlineSec > 0 && local.isRunning) {
           return { ...local, elapsedSeconds: Math.min(28800, local.elapsedSeconds + offlineSec) };
         }
         return local;
       });
+      
       const [quickTimer, setQuickTimer] = useState(() => {
         const local = JSON.parse(localStorage.getItem('crk_local_quick_timer')) || { name: '개인용 퀵 타이머 🎯', totalSeconds: 300, remainingSeconds: 300, isRunning: false };
         if (offlineSec > 0 && local.isRunning) {
@@ -349,7 +367,7 @@
         return () => unsubscribe();
       }, []);
 
-      // --- 📡 [핵심 수정] 실시간 클라우드 데이터 수신 및 오프라인 경과시간 보정 엔진 ---
+      // --- 📡 실시간 클라우드 데이터 수신 및 오프라인 경과시간 보정 엔진 ---
       useEffect(() => {
         if (!user || cloudStatus !== 'connected') return;
 
@@ -358,19 +376,28 @@
           if (docSnap.exists()) {
             const cloudData = docSnap.data();
             
-            // 1. 단순 텍스트 / 불리언 상태는 실시간으로 즉시 동기화 매핑
             if (cloudData.dailyHomework) { setDailyHomework(cloudData.dailyHomework); localStorage.setItem('crk_local_daily_hw', JSON.stringify(cloudData.dailyHomework)); }
             if (cloudData.twelveHourHomework) { setTwelveHourHomework(cloudData.twelveHourHomework); localStorage.setItem('crk_local_12h_hw', JSON.stringify(cloudData.twelveHourHomework)); }
             if (cloudData.weeklyHomework) { setWeeklyHomework(cloudData.weeklyHomework); localStorage.setItem('crk_local_weekly_hw', JSON.stringify(cloudData.weeklyHomework)); }
-            if (cloudData.currencies) { setCurrencies(cloudData.currencies); localStorage.setItem('crk_local_currencies', JSON.stringify(cloudData.currencies)); }
             if (cloudData.postOfficeClaims) { setPostOfficeClaims(cloudData.postOfficeClaims); localStorage.setItem('crk_local_claims', JSON.stringify(cloudData.postOfficeClaims)); }
             
-            // 2. 시간(Timer) 관련 재화는 다른 기기에서 수령하고 지난 기간(오프라인 갭)을 동기화 시점에 정밀 계산
             if (cloudData.lastUpdatedTime) {
               const cloudOfflineSec = Math.floor((Date.now() - cloudData.lastUpdatedTime) / 1000);
               
-              // 두 창이 동시에 켜져 있을 때 발생하는 핑(Ping) 꼬임 방지를 위해 5초 이상의 시간 갭이 존재할 때만 보정 차감 적용
               if (cloudOfflineSec > 5) {
+                if (cloudData.currencies) {
+                  const adjustedCurrencies = cloudData.currencies.map(c => {
+                    if (!c.isActive || c.current >= c.max) return c;
+                    let rem = (c.remainingSeconds !== undefined ? c.remainingSeconds : c.rechargeTimeMinutes * 60) - cloudOfflineSec;
+                    let cur = c.current;
+                    const step = c.rechargeTimeMinutes * 60;
+                    while (rem <= 0 && cur < c.max) { cur += 1; rem += step; }
+                    if (cur >= c.max) rem = step;
+                    return { ...c, current: cur, remainingSeconds: rem };
+                  });
+                  setCurrencies(adjustedCurrencies);
+                  localStorage.setItem('crk_local_currencies', JSON.stringify(adjustedCurrencies));
+                }
                 if (cloudData.timers) {
                   const adjustedTimers = cloudData.timers.map(t => t.isRunning && t.remainingSeconds > 0 
                     ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - cloudOfflineSec) } 
@@ -394,7 +421,7 @@
                   localStorage.setItem('crk_local_quick_timer', JSON.stringify(adjustedQuick));
                 }
               } else {
-                // 실시간 동기화 상태일 때는 그대로 안전하게 덮어쓰기 진행
+                if (cloudData.currencies) { setCurrencies(cloudData.currencies); localStorage.setItem('crk_local_currencies', JSON.stringify(cloudData.currencies)); }
                 if (cloudData.timers) { setTimers(cloudData.timers); localStorage.setItem('crk_local_timers', JSON.stringify(cloudData.timers)); }
                 if (cloudData.fountainTime) { setFountainTime(cloudData.fountainTime); localStorage.setItem('crk_local_fountain', JSON.stringify(cloudData.fountainTime)); }
                 if (cloudData.quickTimer) { setQuickTimer(cloudData.quickTimer); localStorage.setItem('crk_local_quick_timer', JSON.stringify(cloudData.quickTimer)); }
@@ -422,6 +449,27 @@
           if (deltaSeconds <= 0) return;
           localStorage.setItem('crk_last_active', Date.now().toString());
 
+          // 1. 재화(Currency) 실시간 차감 연동 버그 픽스 완료
+          setCurrencies(prevCurrencies => {
+            let changed = false;
+            const nextCurrencies = prevCurrencies.map(c => {
+              if (!c.isActive || c.current >= c.max) return c;
+              changed = true;
+              let rem = (c.remainingSeconds !== undefined ? c.remainingSeconds : c.rechargeTimeMinutes * 60) - deltaSeconds;
+              let cur = c.current;
+              const step = c.rechargeTimeMinutes * 60;
+              while (rem <= 0 && cur < c.max) { cur += 1; rem += step; }
+              if (cur >= c.max) rem = step;
+              return { ...c, current: cur, remainingSeconds: rem };
+            });
+            if (changed) {
+              localStorage.setItem('crk_local_currencies', JSON.stringify(nextCurrencies));
+              if (cloudStatus === 'connected') saveToCloud({ currencies: nextCurrencies });
+            }
+            return nextCurrencies;
+          });
+
+          // 2. 풍요의 분수 엔진 연동
           setFountainTime(prevFountain => {
             if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
               const updatedSec = Math.min(28800, prevFountain.elapsedSeconds + deltaSeconds);
@@ -430,11 +478,13 @@
                 triggerNotification("⛲ 풍요의 분수 최대 누적!", "풍요의 분수가 최대치(8시간)까지 생산되었습니다!");
               }
               localStorage.setItem('crk_local_fountain', JSON.stringify(nextFountain));
+              if (cloudStatus === 'connected') saveToCloud({ fountainTime: nextFountain });
               return nextFountain;
             }
             return prevFountain;
           });
 
+          // 3. 타이머 엔진 연동
           setTimers(prevTimers => {
             let changed = false;
             const nextTimers = prevTimers.map(t => {
@@ -455,6 +505,7 @@
             return nextTimers;
           });
 
+          // 4. 퀵 타이머 엔진 연동
           setQuickTimer(prevQuick => {
             if (prevQuick.isRunning && prevQuick.remainingSeconds > 0) {
               const updatedSeconds = Math.max(0, prevQuick.remainingSeconds - deltaSeconds);
@@ -474,22 +525,11 @@
         return () => clearInterval(interval);
       }, [cloudStatus]);
 
+      // 충전 재화 뷰 매핑 데이터 계산 변환
       const computedCurrencies = currencies.map(c => {
-        if (c.current >= c.max || !c.isActive) return { ...c, liveCurrent: c.current, secondsToNext: 0, secondsToFull: 0 };
-        const totalRechargeSecPerUnit = c.rechargeTimeMinutes * 60;
-        const elapsedMs = now.getTime() - c.lastUpdated;
-        
-        const initialRemOffset = c.nextUnitRemSeconds !== undefined ? (totalRechargeSecPerUnit - c.nextUnitRemSeconds) * 1000 : 0;
-        const totalElapsedMs = elapsedMs + initialRemOffset;
-        
-        const gainedUnits = Math.floor(totalElapsedMs / (totalRechargeSecPerUnit * 1000));
-        const liveCurrent = Math.min(c.max, c.current + gainedUnits);
-        
-        let secondsToNext = 0, secondsToFull = 0;
-        if (liveCurrent < c.max) {
-          secondsToNext = Math.ceil(( (totalRechargeSecPerUnit * 1000) - (totalElapsedMs % (totalRechargeSecPerUnit * 1000)) ) / 1000);
-          secondsToFull = secondsToNext + ((c.max - liveCurrent - 1) * totalRechargeSecPerUnit);
-        }
+        const liveCurrent = c.current;
+        const secondsToNext = c.current >= c.max ? 0 : c.remainingSeconds;
+        const secondsToFull = c.current >= c.max ? 0 : c.remainingSeconds + ((c.max - c.current - 1) * c.rechargeTimeMinutes * 60);
         return { ...c, liveCurrent, secondsToNext, secondsToFull };
       });
 
@@ -553,15 +593,29 @@
           return t;
         });
         dispatchStateUpdate({ timers: nextTimers });
+        setSelectedMineIds([]);
         showToast("⛏️ 체크한 광산이 일괄 정식 출발했습니다!");
       }
 
-      function handleToggleSelectAllMines() {
-        const mineIds = timers.filter(t => t.id.startsWith('mine_harvest_')).map(t => t.id);
-        if (selectedMineIds.length === mineIds.length) {
-          setSelectedMineIds([]);
+      // [개편] 완료 상태(0초 이하이거나 멈춘)인 광산들만 정확하게 자동 타겟팅해서 체크해 주는 버튼 스위치
+      function handleSelectCompletedMines() {
+        const completedMineIds = timers
+          .filter(t => t.id.startsWith('mine_harvest_') && (t.remainingSeconds <= 0 || !t.isRunning))
+          .map(t => t.id);
+        
+        if (completedMineIds.length === 0) {
+          showToast("🔔 현재 수령 대기 중인 채굴 광산이 없습니다.");
+          return;
+        }
+
+        const allCompletedChecked = completedMineIds.every(id => selectedMineIds.includes(id));
+        if (allCompletedChecked) {
+          setSelectedMineIds(selectedMineIds.filter(id => !completedMineIds.includes(id)));
+          showToast("⌫ 완료된 채굴 체크를 해제했습니다.");
         } else {
-          setSelectedMineIds(mineIds);
+          const nextSelected = Array.from(new Set([...selectedMineIds, ...completedMineIds]));
+          setSelectedMineIds(nextSelected);
+          showToast(`✓ 완료된 채굴 ${completedMineIds.length}개를 자동으로 체크했습니다!`);
         }
       }
       
@@ -681,22 +735,26 @@
       }
 
       const handleUpdateCurrencyCurrent = (id, val) => {
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, current: parseInt(val) || 0, lastUpdated: Date.now() } : c) });
+        const parsed = parseInt(val) || 0;
+        const target = currencies.find(c => c.id === id);
+        if (!target) return;
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, current: parsed, remainingSeconds: parsed >= c.max ? c.rechargeTimeMinutes * 60 : c.remainingSeconds } : c) });
       };
       const handleUpdateCurrencyMax = (id, val) => {
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, max: parseInt(val) || 0, lastUpdated: Date.now() } : c) });
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, max: parseInt(val) || 0 } : c) });
       };
       const handleUpdateCurrencyMinutes = (id, val) => {
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, rechargeTimeMinutes: parseInt(val) || 1, lastUpdated: Date.now() } : c) });
+        const parsed = parseInt(val) || 1;
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, rechargeTimeMinutes: parsed, remainingSeconds: parsed * 60 } : c) });
       };
       const handleToggleCurrencyActive = (id) => {
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, isActive: !c.isActive, lastUpdated: Date.now() } : c) });
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c) });
       };
 
       const handleUpdateCurrencyNextUnitSeconds = (id, mins, secs) => {
         const totalInputSecs = (parseInt(mins) || 0) * 60 + (parseInt(secs) || 0);
         dispatchStateUpdate({
-          currencies: currencies.map(c => c.id === id ? { ...c, nextUnitRemSeconds: totalInputSecs, lastUpdated: Date.now() } : c)
+          currencies: currencies.map(c => c.id === id ? { ...c, remainingSeconds: totalInputSecs } : c)
         });
       };
 
@@ -848,21 +906,23 @@
                     </div>
                   </div>
 
-                  {/* ⛲ 풍요의 분수 생산 모니터 */}
+                  {/* ⛲ 풍요의 분수 대시보드 카드 [복구 및 2단계 분리 적용] */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-amber-200 bg-amber-50/10 shadow-sm flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-amber-700 tracking-widest uppercase block">Fountain of Plenty</span>
-                        <span className="text-[9px] bg-amber-200/60 text-amber-900 font-extrabold px-1.5 py-0.5 rounded">최대 8시간 알림</span>
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${fountainTime.isRunning ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'}`}>
+                          {fountainTime.isRunning ? '● 생산중' : '■ 정지상태'}
+                        </span>
                       </div>
-                      <h2 className="text-xl font-black mt-3 text-stone-900">⛲ 풍요의 분수 생산 모니터</h2>
+                      <h2 className="text-xl font-black mt-3 text-stone-900">⛲ 풍요의 분수 모니터</h2>
                       
                       <div className="my-4 bg-white p-3.5 rounded-2xl border border-amber-100 shadow-inner">
-                        <p className="text-[11px] font-bold text-stone-500">마지막 수령 후 경과 시간:</p>
+                        <p className="text-[11px] font-bold text-stone-500">누적 누적 시간 (최대 8시간):</p>
                         <p className="font-mono text-2xl font-black text-amber-900 mt-1">
                           {formatElapsedSeconds(fountainTime.elapsedSeconds)}
                           {fountainTime.elapsedSeconds >= 28800 && (
-                            <span className="ml-2 text-xs bg-rose-600 text-white px-2 py-0.5 rounded-md align-middle animate-pulse font-sans">MAX! 수령</span>
+                            <span className="ml-2 text-xs bg-rose-600 text-white px-2 py-0.5 rounded-md align-middle animate-pulse font-sans">MAX 수령!</span>
                           )}
                         </p>
                         <div className="w-full bg-stone-100 h-2 rounded-full mt-3 overflow-hidden">
@@ -871,16 +931,30 @@
                       </div>
                     </div>
                     
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        dispatchStateUpdate({ fountainTime: { elapsedSeconds: 0, isRunning: true } });
-                        showToast("⛲ 분수 보상을 수령하고 타이머를 리셋했습니다!");
-                      }} 
-                      className="w-full bg-amber-700 hover:bg-amber-800 text-white text-xs font-black py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1"
-                    >
-                      <RefreshIcon /> 보상 수령 완료 (타이머 리셋)
-                    </button>
+                    {/* 🛠️ 개편: 무조건 초기화가 아닌 2단계 수동 프로세스로 가동 */}
+                    <div className="flex gap-2 w-full">
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          dispatchStateUpdate({ fountainTime: { ...fountainTime, elapsedSeconds: 0 } });
+                          showToast("⛲ 분수 보상을 수령하여 시간을 00:00:00으로 비웠습니다. 아래 생산을 시작해주세요!");
+                        }} 
+                        className="flex-1 bg-amber-700 hover:bg-amber-800 text-white text-[11px] font-black py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1"
+                      >
+                        1단계: 보상 수령
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          const nextRunning = !fountainTime.isRunning;
+                          dispatchStateUpdate({ fountainTime: { ...fountainTime, isRunning: nextRunning } });
+                          showToast(nextRunning ? "▶ 분수 시간 카운트 엔진을 가동합니다!" : "⏸ 분수 시간 엔진을 일시정지했습니다.");
+                        }} 
+                        className={`px-3 py-3 rounded-xl text-[11px] font-black border transition-all ${fountainTime.isRunning ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-emerald-600 border-emerald-600 text-white'}`}
+                      >
+                        {fountainTime.isRunning ? '⏸ 정지' : '▶ 생산 가동'}
+                      </button>
+                    </div>
                   </div>
 
                   {/* 프로그레스 패널 */}
@@ -1022,46 +1096,85 @@
               </div>
             )}
 
-            {/* 2. 숙제 패널 */}
+            {/* 2. 숙제 패널 [🛠️ 개편: 가로-세로 가변 스케일링 완전 노출 구조 변경] */}
             {activeTab === 'homework' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col">
-                  <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between">🌅 일일 숙제 <span className="font-mono text-xs text-rose-600">{getCountdownToMidnight(now)}</span></h3>
-                  <div className="flex gap-1 py-2 border-b"><button onClick={() => handleBulkCheck('daily', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체완료</button><button onClick={() => handleBulkCheck('daily', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체해제</button></div>
-                  <form onSubmit={e => handleAddTask('daily', e)} className="flex gap-2 py-3"><input type="text" placeholder="+ 새 숙제 등록" value={newDailyName} onChange={e => setNewDailyName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none" /><button type="submit" className="bg-stone-900 text-white rounded-xl px-3">+</button></form>
-                  <div className="space-y-2 max-h-[380px] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                {/* 일일 숙제 */}
+                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
+                  <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center">
+                    <span>🌅 일일 숙제</span>
+                    <span className="font-mono text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded">{getCountdownToMidnight(now)}</span>
+                  </h3>
+                  <div className="flex gap-1 py-2 border-b">
+                    <button type="button" onClick={() => handleBulkCheck('daily', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체완료</button>
+                    <button type="button" onClick={() => handleBulkCheck('daily', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체해제</button>
+                  </div>
+                  <form onSubmit={e => handleAddTask('daily', e)} className="flex gap-2 py-3">
+                    <input type="text" placeholder="+ 새 숙제 직접 추가" value={newDailyName} onChange={e => setNewDailyName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-stone-400" />
+                    <button type="submit" className="bg-stone-900 text-white rounded-xl px-4 text-sm font-bold hover:bg-stone-800">+</button>
+                  </form>
+                  <div className="space-y-1.5 w-full">
                     {getSortedHomework(dailyHomework).map(item => (
-                      <div key={item.id} className="p-3 border rounded-xl flex justify-between items-center text-xs">
-                        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ dailyHomework: dailyHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} /><span className={item.done ? 'line-through text-stone-400' : 'font-bold text-stone-800'}>{item.name}</span></label>
-                        <button onClick={() => handleDeleteTask('daily', item.id)} className="text-stone-300 hover:text-rose-600"><TrashIcon className="w-3.5 h-3.5" /></button>
+                      <div key={item.id} className={`p-3 border rounded-xl flex justify-between items-center text-xs transition-all ${item.done ? 'bg-stone-50/70 border-stone-200 opacity-60' : 'bg-white border-stone-200 shadow-sm'}`}>
+                        <label className="flex items-center gap-2.5 cursor-pointer flex-1 py-0.5 select-none">
+                          <input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ dailyHomework: dailyHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} className="rounded accent-stone-900 w-3.5 h-3.5" />
+                          <span className={`text-stone-800 font-medium ${item.done ? 'line-through text-stone-400 font-normal' : ''}`}>{item.name}</span>
+                        </label>
+                        <button onClick={() => handleDeleteTask('daily', item.id)} className="text-stone-300 hover:text-rose-600 transition-colors p-1"><TrashIcon className="w-3.5 h-3.5" /></button>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col">
-                  <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between">⚔️ 12시간 숙제 <span className="font-mono text-xs text-rose-600">{getCountdownToTwelveHour(now)}</span></h3>
-                  <div className="flex gap-1 py-2 border-b"><button onClick={() => handleBulkCheck('12h', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체완료</button><button onClick={() => handleBulkCheck('12h', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체해제</button></div>
-                  <form onSubmit={e => handleAddTask('12h', e)} className="flex gap-2 py-3"><input type="text" placeholder="+ 새 숙제 등록" value={newTwelveName} onChange={e => setNewTwelveName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none" /><button type="submit" className="bg-stone-900 text-white rounded-xl px-3">+</button></form>
-                  <div className="space-y-2 max-h-[380px] overflow-y-auto">
+                {/* 12시간 숙제 */}
+                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
+                  <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center">
+                    <span>⚔️ 12시간 숙제</span>
+                    <span className="font-mono text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded">{getCountdownToTwelveHour(now)}</span>
+                  </h3>
+                  <div className="flex gap-1 py-2 border-b">
+                    <button type="button" onClick={() => handleBulkCheck('12h', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체완료</button>
+                    <button type="button" onClick={() => handleBulkCheck('12h', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체해제</button>
+                  </div>
+                  <form onSubmit={e => handleAddTask('12h', e)} className="flex gap-2 py-3">
+                    <input type="text" placeholder="+ 새 숙제 직접 추가" value={newTwelveName} onChange={e => setNewTwelveName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-stone-400" />
+                    <button type="submit" className="bg-stone-900 text-white rounded-xl px-4 text-sm font-bold hover:bg-stone-800">+</button>
+                  </form>
+                  <div className="space-y-1.5 w-full">
                     {getSortedHomework(twelveHourHomework).map(item => (
-                      <div key={item.id} className="p-3 border rounded-xl flex justify-between items-center text-xs">
-                        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} /><span className={item.done ? 'line-through text-stone-400' : 'font-bold text-stone-800'}>{item.name}</span></label>
-                        <button onClick={() => handleDeleteTask('12h', item.id)} className="text-stone-300 hover:text-rose-600"><TrashIcon className="w-3.5 h-3.5" /></button>
+                      <div key={item.id} className={`p-3 border rounded-xl flex justify-between items-center text-xs transition-all ${item.done ? 'bg-stone-50/70 border-stone-200 opacity-60' : 'bg-white border-stone-200 shadow-sm'}`}>
+                        <label className="flex items-center gap-2.5 cursor-pointer flex-1 py-0.5 select-none">
+                          <input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} className="rounded accent-stone-900 w-3.5 h-3.5" />
+                          <span className={`text-stone-800 font-medium ${item.done ? 'line-through text-stone-400 font-normal' : ''}`}>{item.name}</span>
+                        </label>
+                        <button onClick={() => handleDeleteTask('12h', item.id)} className="text-stone-300 hover:text-rose-600 transition-colors p-1"><TrashIcon className="w-3.5 h-3.5" /></button>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col">
-                  <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between">🛡️ 주간 숙제 <span className="font-mono text-xs text-rose-600">{getCountdownToThursday(now)}</span></h3>
-                  <div className="flex gap-1 py-2 border-b"><button onClick={() => handleBulkCheck('weekly', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체완료</button><button onClick={() => handleBulkCheck('weekly', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1 rounded">전체해제</button></div>
-                  <form onSubmit={e => handleAddTask('weekly', e)} className="flex gap-2 py-3"><input type="text" placeholder="+ 새 숙제 등록" value={newWeeklyName} onChange={e => setNewWeeklyName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none" /><button type="submit" className="bg-stone-900 text-white rounded-xl px-3">+</button></form>
-                  <div className="space-y-2 max-h-[380px] overflow-y-auto">
+                {/* 주간 숙제 */}
+                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
+                  <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center">
+                    <span>🛡️ 주간 숙제</span>
+                    <span className="font-mono text-xs text-stone-700 bg-stone-100 px-2 py-0.5 rounded">{getCountdownToThursday(now)}</span>
+                  </h3>
+                  <div className="flex gap-1 py-2 border-b">
+                    <button type="button" onClick={() => handleBulkCheck('weekly', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체완료</button>
+                    <button type="button" onClick={() => handleBulkCheck('weekly', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체해제</button>
+                  </div>
+                  <form onSubmit={e => handleAddTask('weekly', e)} className="flex gap-2 py-3">
+                    <input type="text" placeholder="+ 새 숙제 직접 추가" value={newWeeklyName} onChange={e => setNewWeeklyName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-stone-400" />
+                    <button type="submit" className="bg-stone-900 text-white rounded-xl px-4 text-sm font-bold hover:bg-stone-800">+</button>
+                  </form>
+                  <div className="space-y-1.5 w-full">
                     {getSortedHomework(weeklyHomework).map(item => (
-                      <div key={item.id} className="p-3 border rounded-xl flex justify-between items-center text-xs">
-                        <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ weeklyHomework: weeklyHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} /><span className={item.done ? 'line-through text-stone-400' : 'font-bold text-stone-800'}>{item.name}</span></label>
-                        <button onClick={() => handleDeleteTask('weekly', item.id)} className="text-stone-300 hover:text-rose-600"><TrashIcon className="w-3.5 h-3.5" /></button>
+                      <div key={item.id} className={`p-3 border rounded-xl flex justify-between items-center text-xs transition-all ${item.done ? 'bg-stone-50/70 border-stone-200 opacity-60' : 'bg-white border-stone-200 shadow-sm'}`}>
+                        <label className="flex items-center gap-2.5 cursor-pointer flex-1 py-0.5 select-none">
+                          <input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ weeklyHomework: weeklyHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} className="rounded accent-stone-900 w-3.5 h-3.5" />
+                          <span className={`text-stone-800 font-medium ${item.done ? 'line-through text-stone-400 font-normal' : ''}`}>{item.name}</span>
+                        </label>
+                        <button onClick={() => handleDeleteTask('weekly', item.id)} className="text-stone-300 hover:text-rose-600 transition-colors p-1"><TrashIcon className="w-3.5 h-3.5" /></button>
                       </div>
                     ))}
                   </div>
@@ -1159,18 +1272,16 @@
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-stone-900 to-stone-800 text-white p-4 rounded-2xl shadow-md">
                     <div>
                       <h4 className="text-sm font-black flex items-center gap-1.5">⛏️ 납작이 광산 채굴 현황 (6배수 확장)</h4>
-                      <p className="text-[11px] text-stone-300 mt-0.5">보내고 싶은 광산을 체크한 뒤 일괄 출발시키세요. 완료 시 자동 상단 고정 정렬이 가동됩니다.</p>
+                      <p className="text-[11px] text-stone-300 mt-0.5">완료된 광산을 한 번에 체크하여 빠르게 재출발시키세요. 완료 시 자동 상단 고정 정렬이 가동됩니다.</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                      <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer bg-white/10 px-3 py-2 rounded-xl border border-white/10 hover:bg-white/20 select-none">
-                        <input
-                          type="checkbox"
-                          checked={selectedMineIds.length === timers.filter(t => t.id.startsWith('mine_harvest_')).map(t => t.id).length && selectedMineIds.length > 0}
-                          onChange={handleToggleSelectAllMines}
-                          className="rounded accent-amber-500"
-                        />
-                        <span>전체 선택</span>
-                      </label>
+                      <button
+                        type="button"
+                        onClick={handleSelectCompletedMines}
+                        className="text-xs font-bold bg-white/10 px-3.5 py-2 rounded-xl border border-white/10 hover:bg-white/20 select-none text-white transition-all"
+                      >
+                        ✓ 완료된 채굴만 선택
+                      </button>
                       <button
                         type="button"
                         onClick={handleBatchStartMines}
@@ -1186,7 +1297,7 @@
                   </div>
                 </div>
 
-                {/* 주요 영토 고정 콘텐츠 */}
+                {/* 주요 영토 고정 콘텐츠 [풍요의 분수 초시계 전면 영구 삭제] */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🏰 왕국 주요 기본 콘텐츠 초시계</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1247,8 +1358,7 @@
       );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    const root = ReactDOM.createRoot(document.getElementById('root')); root.render(<App />);
   </script>
 </body>
 </html>
