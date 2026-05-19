@@ -62,15 +62,9 @@
         </svg>
       );
     }
-    function PlayIcon() {
-      return <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>;
-    }
-    function PauseIcon() {
-      return <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>;
-    }
-    function RefreshIcon() {
-      return <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>;
-    }
+    function PlayIcon() { return <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>; }
+    function PauseIcon() { return <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>; }
+    function RefreshIcon() { return <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>; }
 
     // --- 헬퍼 함수 정의 ---
     const getSortedHomework = (list) => {
@@ -110,86 +104,47 @@
       return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
     const getCountdownToMidnight = (now) => {
-      const midnight = new Date(now);
-      midnight.setHours(24, 0, 0, 0);
+      const midnight = new Date(now); midnight.setHours(24, 0, 0, 0);
       const diff = midnight.getTime() - now.getTime();
       if (diff <= 0) return "00:00:00";
-      const hrs = Math.floor(diff / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
+      const hrs = Math.floor(diff / 3600000); const mins = Math.floor((diff % 3600000) / 60000); const secs = Math.floor((diff % 60000) / 1000);
       return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
     const getCountdownToTwelveHour = (now) => {
-      const hours = now.getHours();
-      const nextReset = new Date(now);
-      if (hours < 12) {
-        nextReset.setHours(12, 0, 0, 0);
-      } else {
-        nextReset.setHours(24, 0, 0, 0);
-      }
+      const hours = now.getHours(); const nextReset = new Date(now);
+      if (hours < 12) nextReset.setHours(12, 0, 0, 0); else nextReset.setHours(24, 0, 0, 0);
       const diff = nextReset.getTime() - now.getTime();
       if (diff <= 0) return "00:00:00";
-      const hrs = Math.floor(diff / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
+      const hrs = Math.floor(diff / 3600000); const mins = Math.floor((diff % 3600000) / 60000); const secs = Math.floor((diff % 60000) / 1000);
       return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
     const getCountdownToThursday = (now) => {
-      const today = now.getDay();
-      const daysUntilThursday = (4 - today + 7) % 7 || 7;
-      const target = new Date(now);
-      target.setDate(now.getDate() + daysUntilThursday);
-      target.setHours(0, 0, 0, 0);
-
+      const today = now.getDay(); const daysUntilThursday = (4 - today + 7) % 7 || 7;
+      const target = new Date(now); target.setDate(now.getDate() + daysUntilThursday); target.setHours(0, 0, 0, 0);
       const diff = target.getTime() - now.getTime();
       if (diff <= 0) return "리셋 완료";
-      const days = Math.floor(diff / 86400000);
-      const hrs = Math.floor((diff % 86400000) / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
+      const days = Math.floor(diff / 86400000); const hrs = Math.floor((diff % 86400000) / 3600000); const mins = Math.floor((diff % 3600000) / 60000);
       return `${days}일 ${hrs}시간 ${mins}분`;
     };
     const getPostOfficeStatus = (now) => {
-      const hour = now.getHours();
-      const min = now.getMinutes();
-      const sec = now.getSeconds();
-      const currentPeriodHour = Math.floor(hour / 2) * 2;
-      const isCurrentlyOpen = min < 20;
+      const hour = now.getHours(); const min = now.getMinutes(); const sec = now.getSeconds();
+      const currentPeriodHour = Math.floor(hour / 2) * 2; const isCurrentlyOpen = min < 20;
       if (isCurrentlyOpen) {
-        return {
-          isOpen: true,
-          text: '광장 우체국 보상 수령 가능!',
-          subText: `${19 - min}분 ${59 - sec}초 내 수령 필요`,
-          currentWindow: `${currentPeriodHour}시 ~ ${currentPeriodHour}시 20분`
-        };
+        return { isOpen: true, text: '광장 우체국 보상 수령 가능!', subText: `${19 - min}분 ${59 - sec}초 내 수령 필요`, currentWindow: `${currentPeriodHour}시 ~ ${currentPeriodHour}시 20분` };
       } else {
-        const nextOpenHour = (currentPeriodHour + 2) % 24;
-        let targetDate = new Date(now);
-        targetDate.setHours(nextOpenHour, 0, 0, 0);
+        const nextOpenHour = (currentPeriodHour + 2) % 24; let targetDate = new Date(now); targetDate.setHours(nextOpenHour, 0, 0, 0);
         if (nextOpenHour <= hour) targetDate.setDate(targetDate.setDate() + 1);
         const diffMs = targetDate.getTime() - now.getTime();
-        const diffHr = Math.floor(diffMs / 3600000);
-        const diffMin = Math.floor((diffMs % 3600000) / 60000);
-        const diffSec = Math.floor((diffMs % 60000) / 1000);
-        return {
-          isOpen: false,
-          text: '우체국 수령 대기 중',
-          subText: `다음 개방: ${diffHr > 0 ? diffHr + '시간 ' : ''}${diffMin}분 ${diffSec}초 남음`,
-          currentWindow: `${nextOpenHour}시 ~ ${nextOpenHour}시 20분`
-        };
+        const diffHr = Math.floor(diffMs / 3600000); const diffMin = Math.floor((diffMs % 3600000) / 60000); const diffSec = Math.floor((diffMs % 60000) / 1000);
+        return { isOpen: false, text: '우체국 수령 대기 중', subText: `다음 개방: ${diffHr > 0 ? diffHr + '시간 ' : ''}${diffMin}분 ${diffSec}초 남음`, currentWindow: `${nextOpenHour}시 ~ ${nextOpenHour}시 20분` };
       }
     };
 
     const windowcopyToClipboard = (text) => {
-      const textField = document.createElement('textarea');
-      textField.innerText = text;
-      document.body.appendChild(textField);
-      textField.select();
-      document.execCommand('copy');
-      textField.remove();
+      const textField = document.createElement('textarea'); textField.innerText = text; document.body.appendChild(textField); textField.select(); document.execCommand('copy'); textField.remove();
     };
 
-    // --- 초기 데이터셋 ---
     const INITIAL_DAILY = [
       { id: 1, name: '친구 선물 보내기', done: false, important: true, memo: '' },
       { id: 2, name: '무료 선물 받기', done: false, important: false, memo: '' },
@@ -240,41 +195,9 @@
       const [cloudStatus, setCloudStatus] = useState('authenticating');
       const [toastMessage, setToastMessage] = useState('');
       
-      const [inlineEditConfig, setInlineEditConfig] = useState({ 
-        isOpen: false, id: null, name: '', mode: 'delay', days: '0', hours: '0', minutes: '0'
-      });
+      const [inlineEditConfig, setInlineEditConfig] = useState({ isOpen: false, id: null, name: '', mode: 'delay', days: '0', hours: '0', minutes: '0' });
       const [selectedMineIds, setSelectedMineIds] = useState([]);
-useEffect(() => {
-        // 파이썬/로컬 저장소에서 데이터 불러오기
-        if (window.pywebview && window.pywebview.api && window.pywebview.api.load_local_data) {
-            window.pywebview.api.load_local_data().then(strData => {
-                if (strData) {
-                    try {
-                        const saved = JSON.parse(strData);
-                        // 동기화 코드가 있다면 즉시 적용
-                        if (saved.syncCode) {
-                            localStorage.setItem('crk_sync_code_v4', saved.syncCode);
-                            setSyncCode(saved.syncCode);
-                            showToast("🔄 마지막 세션 코드로 자동 연동되었습니다.");
-                        }
-                    } catch(e) { console.error("로컬 데이터 로드 실패", e); }
-                }
-            });
-        }
-    }, []);
 
-    // 💾 [상태가 변할 때마다 파이썬 로컬에 자동 백업]
-    function dispatchStateUpdate(updates) {
-        // ... (기존 dispatchStateUpdate 로직 유지)
-        
-        // 파이썬으로 현재 상태 데이터 자동 전송
-        if (window.pywebview && window.pywebview.api && window.pywebview.api.save_local_data) {
-            const currentState = { ...stateRef.current, ...updates };
-            window.pywebview.api.save_local_data(JSON.stringify(currentState));
-        }
-        saveToCloud(updates);
-    }
-      // --- 💾 오프라인 시간 흐름 보정용 초기화 블록 ---
       const getOfflineSeconds = () => {
         const lastActive = localStorage.getItem('crk_last_active');
         if (!lastActive) return 0;
@@ -353,7 +276,7 @@ useEffect(() => {
         showToast(`🔔 ${title} : ${body}`);
       };
 
-      // 💾 [파이썬 전용 로컬 백업 브릿지 시스템]
+      // 💾 파이썬 로컬 저장소 캐시 로드
       useEffect(() => {
         if (window.pywebview && window.pywebview.api && window.pywebview.api.load_local_data) {
           window.pywebview.api.load_local_data().then(strData => {
@@ -367,7 +290,7 @@ useEffect(() => {
               if (cloudData.postOfficeClaims) setPostOfficeClaims(cloudData.postOfficeClaims);
               if (cloudData.fountainTime) setFountainTime(cloudData.fountainTime);
               if (cloudData.quickTimer) setQuickTimer(cloudData.quickTimer);
-              if (cloudData.syncCode) setSyncCode(cloudData.syncCode);
+              if (cloudData.syncCode) { setSyncCode(cloudData.syncCode); localStorage.setItem('crk_sync_code_v4', cloudData.syncCode); }
             }
           });
         }
@@ -382,12 +305,12 @@ useEffect(() => {
         return () => unsubscribe();
       }, []);
 
-      // 📡 [파이어베이스 실시간 보정 데이터 수신]
+      // 📡 실시간 클라우드 데이터 수신 및 지연 오차 자동 보정 장치
       useEffect(() => {
         if (!syncCode) return;
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kingdoms', syncCode);
         const unsubscribeSnapshot = onSnapshot(docRef, { includeMetadataChanges: true }, (docSnap) => {
-          if (docSnap.metadata.hasPendingWrites) return; // 내가 올린 신호가 역류해 들어오는 피드백 루프 서킷 차단
+          if (docSnap.metadata.hasPendingWrites) return; // 역류 방지 가드
           if (docSnap.exists()) {
             const cloudData = docSnap.data();
             if (cloudData.dailyHomework) { setDailyHomework(cloudData.dailyHomework); localStorage.setItem('crk_local_daily_hw', JSON.stringify(cloudData.dailyHomework)); }
@@ -397,35 +320,32 @@ useEffect(() => {
             
             if (cloudData.lastUpdatedTime) {
               const cloudOfflineSec = Math.floor((Date.now() - cloudData.lastUpdatedTime) / 1000);
-              if (cloudOfflineSec > 5) {
-                if (cloudData.currencies) {
-                  const adjusted = cloudData.currencies.map(c => {
-                    if (!c.isActive || c.current >= c.max) return c;
-                    let rem = (c.remainingSeconds !== undefined ? c.remainingSeconds : c.rechargeTimeMinutes * 60) - cloudOfflineSec;
-                    let cur = c.current; const step = c.rechargeTimeMinutes * 60;
-                    while (rem <= 0 && cur < c.max) { cur += 1; rem += step; }
-                    if (cur >= c.max) rem = step;
-                    return { ...c, current: cur, remainingSeconds: rem };
-                  });
-                  setCurrencies(adjusted); localStorage.setItem('crk_local_currencies', JSON.stringify(adjusted));
-                }
-                if (cloudData.timers) {
-                  const adjusted = cloudData.timers.map(t => t.isRunning && t.remainingSeconds > 0 ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - cloudOfflineSec) } : t);
-                  setTimers(adjusted); localStorage.setItem('crk_local_timers', JSON.stringify(adjusted));
-                }
-                if (cloudData.fountainTime) {
-                  const adjusted = cloudData.fountainTime.isRunning ? { ...cloudData.fountainTime, elapsedSeconds: Math.min(28800, cloudData.fountainTime.elapsedSeconds + cloudOfflineSec) } : cloudData.fountainTime;
-                  setFountainTime(adjusted); localStorage.setItem('crk_local_fountain', JSON.stringify(adjusted));
-                }
-                if (cloudData.quickTimer) {
-                  const adjusted = cloudData.quickTimer.isRunning ? { ...cloudData.quickTimer, remainingSeconds: Math.max(0, cloudData.quickTimer.remainingSeconds - cloudOfflineSec), isRunning: Math.max(0, cloudData.quickTimer.remainingSeconds - cloudOfflineSec) > 0 } : cloudData.quickTimer;
-                  setQuickTimer(adjusted); localStorage.setItem('crk_local_quick_timer', JSON.stringify(adjusted));
-                }
-              } else {
-                if (cloudData.currencies) { setCurrencies(cloudData.currencies); localStorage.setItem('crk_local_currencies', JSON.stringify(cloudData.currencies)); }
-                if (cloudData.timers) { setTimers(cloudData.timers); localStorage.setItem('crk_local_timers', JSON.stringify(cloudData.timers)); }
-                if (cloudData.fountainTime) { setFountainTime(cloudData.fountainTime); localStorage.setItem('crk_local_fountain', JSON.stringify(cloudData.fountainTime)); }
-                if (cloudData.quickTimer) { setQuickTimer(cloudData.quickTimer); localStorage.setItem('crk_local_quick_timer', JSON.stringify(cloudData.quickTimer)); }
+              
+              // 💡 핵심 픽스: 네트워크 전송 속도 때문에 발생하는 수 초 단위의 지연 오차까지 무조건 보정 처리 계산 적용
+              const networkDelay = cloudOfflineSec > 0 ? cloudOfflineSec : 0;
+              
+              if (cloudData.currencies) {
+                const adjusted = cloudData.currencies.map(c => {
+                  if (!c.isActive || c.current >= c.max) return c;
+                  let rem = (c.remainingSeconds !== undefined ? c.remainingSeconds : c.rechargeTimeMinutes * 60) - networkDelay;
+                  let cur = c.current; const step = c.rechargeTimeMinutes * 60;
+                  while (rem <= 0 && cur < c.max) { cur += 1; rem += step; }
+                  if (cur >= c.max) rem = step;
+                  return { ...c, current: cur, remainingSeconds: rem };
+                });
+                setCurrencies(adjusted); localStorage.setItem('crk_local_currencies', JSON.stringify(adjusted));
+              }
+              if (cloudData.timers) {
+                const adjusted = cloudData.timers.map(t => t.isRunning && t.remainingSeconds > 0 ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - networkDelay) } : t);
+                setTimers(adjusted); localStorage.setItem('crk_local_timers', JSON.stringify(adjusted));
+              }
+              if (cloudData.fountainTime) {
+                const adjusted = cloudData.fountainTime.isRunning ? { ...cloudData.fountainTime, elapsedSeconds: Math.min(28800, cloudData.fountainTime.elapsedSeconds + networkDelay) } : cloudData.fountainTime;
+                setFountainTime(adjusted); localStorage.setItem('crk_local_fountain', JSON.stringify(adjusted));
+              }
+              if (cloudData.quickTimer) {
+                const adjusted = cloudData.quickTimer.isRunning ? { ...cloudData.quickTimer, remainingSeconds: Math.max(0, cloudData.quickTimer.remainingSeconds - networkDelay), isRunning: Math.max(0, cloudData.quickTimer.remainingSeconds - networkDelay) > 0 } : cloudData.quickTimer;
+                setQuickTimer(adjusted); localStorage.setItem('crk_local_quick_timer', JSON.stringify(adjusted));
               }
             }
           }
@@ -433,19 +353,23 @@ useEffect(() => {
         return () => unsubscribeSnapshot();
       }, [syncCode]);
 
-      // --- ⚙️ 실시간 카운트다운 루프 엔진 (무한 루프 끊고 로컬에서 매끄럽게 흐르도록 패치) ---
+      // --- ⚙️ 실시간 고정 스탬프 타임라인 카운트다운 엔진 ---
       useEffect(() => {
-        localStorage.setItem('crk_last_active', Date.now().toString());
+        let lastTickTime = Date.now();
+        localStorage.setItem('crk_last_active', lastTickTime.toString());
 
         const interval = setInterval(() => {
           const currentTime = new Date(); setNow(currentTime);
 
-          const lastActive = parseInt(localStorage.getItem('crk_last_active') || Date.now());
-          const deltaSeconds = Math.floor((Date.now() - lastActive) / 1000);
+          const nowMs = Date.now();
+          // 정밀 오차 보정: 소수점이 손실되지 않도록 실제 흘러간 절대 시간을 정확히 체크
+          const deltaSeconds = Math.floor((nowMs - lastTickTime) / 1000);
           if (deltaSeconds <= 0) return;
-          localStorage.setItem('crk_last_active', Date.now().toString());
+          
+          lastTickTime += deltaSeconds * 1000;
+          localStorage.setItem('crk_last_active', nowMs.toString());
 
-          // 1. 재화 흐름 계산 (로컬 독립 가동하여 버벅임 완전 해소)
+          // 1. 재화 계산
           setCurrencies(prev => {
             const next = prev.map(c => {
               if (!c.isActive || c.current >= c.max) return c;
@@ -459,7 +383,7 @@ useEffect(() => {
             return next;
           });
 
-          // 2. 풍요의 분수 연동
+          // 2. 풍요의 분수
           setFountainTime(prev => {
             if (prev.isRunning && prev.elapsedSeconds < 28800) {
               const updated = Math.min(28800, prev.elapsedSeconds + deltaSeconds);
@@ -471,7 +395,7 @@ useEffect(() => {
             return prev;
           });
 
-          // 3. 타이머 연동
+          // 3. 타이머
           setTimers(prev => {
             let changed = false;
             const next = prev.map(t => {
@@ -486,12 +410,12 @@ useEffect(() => {
             return next;
           });
 
-          // 4. 퀵 타이머 연동
+          // 4. 퀵 타이머
           setQuickTimer(prev => {
             if (prev.isRunning && prev.remainingSeconds > 0) {
               const updated = Math.max(0, prev.remainingSeconds - deltaSeconds);
               const next = { ...prev, remainingSeconds: updated };
-              if (updated === 0) { triggerNotification("🎯 퀵 타이머 완료!", `[${prev.name}] 설정 시간이 끝났습니다.`); next.isRunning = false; }
+              if (updated === 0) { triggerNotification("🎯 퀵 타이머 완료!", `[${prevQuick.name}] 설정 시간이 끝났습니다.`); next.isRunning = false; }
               localStorage.setItem('crk_local_quick_timer', JSON.stringify(next));
               return next;
             }
@@ -522,25 +446,6 @@ useEffect(() => {
         const secondsToFull = c.current >= c.max ? 0 : c.remainingSeconds + ((c.max - c.current - 1) * c.rechargeTimeMinutes * 60);
         return { ...c, liveCurrent, secondsToNext, secondsToFull };
       });
-
-      async function saveToCloudEngineLevel(newData) {
-        const currentRef = stateRef.current;
-        if (!currentRef.syncCode) return;
-        try {
-          const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kingdoms', currentRef.syncCode);
-          await setDoc(docRef, {
-            dailyHomework: newData.dailyHomework ?? currentRef.dailyHomework,
-            twelveHourHomework: newData.twelveHourHomework ?? currentRef.twelveHourHomework,
-            weeklyHomework: newData.weeklyHomework ?? currentRef.weeklyHomework,
-            currencies: newData.currencies ?? currentRef.currencies,
-            timers: newData.timers ?? currentRef.timers,
-            postOfficeClaims: newData.postOfficeClaims ?? currentRef.postOfficeClaims,
-            fountainTime: newData.fountainTime ?? currentRef.fountainTime,
-            quickTimer: newData.quickTimer ?? currentRef.quickTimer,
-            lastUpdatedTime: Date.now()
-          }, { merge: true });
-        } catch {}
-      }
 
       async function saveToCloud(newData) {
         if (!syncCode) return;
@@ -634,7 +539,6 @@ useEffect(() => {
         if (totalSecs <= 0) return;
         dispatchStateUpdate({ timers: [...timers, { id: 'custom_' + Date.now(), name: customTimerName.trim(), totalSeconds: totalSecs, remainingSeconds: totalSecs, isRunning: false, preset: false }] });
         setCustomTimerName(''); setCustomTimerDays('0'); setCustomTimerHours('0'); setCustomTimerMinutes('0');
-        showToast("⏳ 커스텀 타이머가 생성되었습니다.");
       }
 
       function handleDeleteTimer(id) { dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) }); }
@@ -739,11 +643,20 @@ useEffect(() => {
             </div>
           </nav>
 
+          <nav className="max-w-7xl mx-auto mt-6 sticky top-4 z-50">
+            <div className="bg-white/80 backdrop-blur-xl border p-1.5 rounded-2xl shadow-md max-w-xl mx-auto">
+              <div className="grid grid-cols-4 gap-1">
+                {[['dashboard', '📊 대시보드'], ['homework', '📅 숙제 패널'], ['currency', '⚡ 재화 설정'], ['timer', '⏳ 가속 센터']].map(([id, label]) => (
+                  <button key={id} onClick={() => setActiveTab(id)} className={`py-2 text-xs font-bold rounded-xl transition-all ${activeTab === id ? 'bg-stone-900 text-white shadow-md' : 'text-stone-600 hover:bg-stone-100'}`}>{label}</button>
+                ))}
+              </div>
+            </div>
+          </nav>
+
           <main className="max-w-7xl mx-auto mt-8">
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  {/* 우체국 */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 block tracking-widest">📮 POST OFFICE MONITOR</span>
@@ -757,12 +670,11 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  {/* 풍요의 분수 */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-amber-200 bg-amber-50/10 shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-black text-amber-700 tracking-widest uppercase block">Fountain of Plenty</span>
                       <h2 className="text-xl font-black mt-3 text-stone-900">⛲ 풍요의 분수 모니터</h2>
-                      <div className="my-4 bg-white p-3 rounded-2xl border border-amber-100 shadow-inner">
+                      <div className="my-4 bg-white p-3.5 rounded-2xl border border-amber-100 shadow-inner">
                         <p className="font-mono text-2xl font-black text-amber-900">{formatElapsedSeconds(fountainTime.elapsedSeconds)} {fountainTime.elapsedSeconds >= 28800 && <span className="text-xs bg-rose-600 text-white px-2 py-0.5 rounded animate-pulse font-sans align-middle">MAX!</span>}</p>
                       </div>
                     </div>
@@ -772,7 +684,6 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  {/* 프로그레스 패널 */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 block">📊 PROGRESS PANEL</span>
@@ -786,7 +697,6 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* 6종 재화 대시보드 */}
                 <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-3">
                   <span className="text-[10px] font-bold text-stone-400 block">⚡ REALTIME CURRENCY DASHBOARD</span>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -800,14 +710,13 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* 리셋 모드 및 임박 센터 */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                   <div className="lg:col-span-5 bg-white p-6 rounded-3xl border shadow-sm space-y-4 flex flex-col justify-center">
                     <span className="text-[10px] font-bold text-stone-400 block">⏰ RESETS TIMER</span>
                     <div className="space-y-2 text-xs">
-                      <div className="flex justify-between items-center py-2 border-b"><span className="font-bold text-stone-600">일일 0시 리셋</span><span className="font-mono text-rose-600 bg-rose-50 px-2 rounded font-black">{getCountdownToMidnight(now)}</span></div>
-                      <div className="flex justify-between items-center py-2 border-b"><span className="font-bold text-stone-600">대난투 리셋 (12H)</span><span className="font-mono text-rose-600 bg-rose-50 px-2 rounded font-black">{getCountdownToTwelveHour(now)}</span></div>
-                      <div className="flex justify-between items-center py-2"><span className="font-bold text-stone-600">주간 목요일 리셋</span><span className="bg-stone-100 text-stone-700 px-2 rounded font-black">{getCountdownToThursday(now)}</span></div>
+                      <div className="flex justify-between items-center py-2 border-b"><span className="font-bold text-stone-600">일일 0시 리셋</span><span className="font-mono text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg font-black">{getCountdownToMidnight(now)}</span></div>
+                      <div className="flex justify-between items-center py-2 border-b"><span className="font-bold text-stone-600">대난투 리셋 (12H)</span><span className="font-mono text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg font-black">{getCountdownToTwelveHour(now)}</span></div>
+                      <div className="flex justify-between items-center py-2"><span className="font-bold text-stone-600">주간 목요일 리셋</span><span className="bg-stone-100 text-stone-700 px-2.5 py-1 rounded-lg font-black">{getCountdownToThursday(now)}</span></div>
                     </div>
                   </div>
 
@@ -815,7 +724,7 @@ useEffect(() => {
                     <span className="text-[10px] font-bold text-stone-400 block">⌛ URGENT MONITOR</span>
                     <div className="flex-1 mt-4">
                       {timers.filter(t => t.remainingSeconds <= 300).length === 0 ? (
-                        <div className="text-center py-6 bg-[#FAF9F6] rounded-2xl border border-dashed border-stone-200 text-xs text-stone-400 font-bold">임박한 초시계 알림이 없습니다.</div>
+                        <div className="text-center py-7 bg-[#FAF9F6] rounded-2xl border border-dashed text-xs text-stone-400 font-bold">임박한 초시계 알림이 없습니다.</div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[140px] overflow-y-auto">
                           {timers.filter(t => t.remainingSeconds <= 300).map(t => (
@@ -830,7 +739,6 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* 퀵 타이머 컨트롤러 */}
                 <div className="bg-gradient-to-tr from-[#F2ECE4] to-white p-6 rounded-3xl border shadow-sm">
                   <div className="flex flex-col lg:flex-row justify-between gap-6 items-center">
                     <div className="space-y-2 flex-1 w-full">
@@ -855,8 +763,10 @@ useEffect(() => {
                           <button onClick={() => dispatchStateUpdate({ quickTimer: { ...quickTimer, remainingSeconds: quickTimer.totalSeconds, isRunning: false } })} className="p-2.5 border rounded-xl bg-stone-50"><RefreshIcon /></button>
                         </div>
                       </div>
-                      <div className="flex gap-1 pt-3 border-t text-[10px] font-bold">
-                        {[['+1분', 60], ['+5분', 300], ['+1시간', 3600]].map(([l, v]) => (<button key={l} onClick={() => adjustQuickTimerBySeconds(v)} className="bg-[#FAF9F6] border rounded-lg px-2.5 py-1 text-stone-600">{l}</button>))}\
+                      <div className="flex gap-1 pt-3 border-t text-[10px] font-bold overflow-x-auto">
+                        {[ ['+1분', 60], ['+5분', 300], ['+1시간', 3600] ].map(([l, v]) => (
+                          <button key={l} onClick={() => adjustQuickTimerBySeconds(v)} className="bg-[#FAF9F6] border rounded-lg px-2.5 py-1 text-stone-600">{l}</button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -864,10 +774,8 @@ useEffect(() => {
               </div>
             )}
 
-            {/* 2. 숙제 패널 */}
             {activeTab === 'homework' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                {/* 일일 */}
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
                   <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center"><span>🌅 일일 숙제</span></h3>
                   <div className="flex gap-1 py-2 border-b">
@@ -888,7 +796,6 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* 12시간 */}
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
                   <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center"><span>⚔️ 12시간 숙제</span></h3>
                   <div className="flex gap-1 py-2 border-b">
@@ -909,7 +816,6 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* 주간 */}
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
                   <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center"><span>🛡️ 주간 숙제</span></h3>
                   <div className="flex gap-1 py-2 border-b">
@@ -932,7 +838,6 @@ useEffect(() => {
               </div>
             )}
 
-            {/* 3. 재화 설정 패널 */}
             {activeTab === 'currency' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {computedCurrencies.map(c => {
@@ -974,7 +879,6 @@ useEffect(() => {
               </div>
             )}
 
-            {/* 4. 가속 센터 탭 */}
             {activeTab === 'timer' && (
               <div className="space-y-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border shadow-sm max-w-4xl">
