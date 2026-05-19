@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>쿠키런: 킹덤 올인원 플래너 v5.7 🍪</title>
+  <title>쿠키런: 킹덤 올인원 플래너 v5.6 🍪</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght=300;400;500;700;900&display=swap" rel="stylesheet">
@@ -720,7 +720,7 @@
           <header className="max-w-7xl mx-auto pt-10 pb-6 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-stone-200">
             <div>
               <h1 className="text-2xl font-black flex items-center gap-2 text-stone-900 tracking-tight">
-                🍪 쿠키런: 킹덤 올인원 플래너
+                🍪 쿠키런: 킹덤 올인원 플래이너
                 {cloudStatus === 'connected' ? (
                   <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full uppercase font-black">CLOUD LIVE</span>
                 ) : (
@@ -899,7 +899,7 @@
                   <div className="lg:col-span-7 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-stone-400 block tracking-widest uppercase">⌛ URGENT MONITOR</span>
-                      <p className="text-xs text-amber-800 mt-1">남은시간 5분 미만 또는 수령 대기중인 타이머 목록</p>
+                      <p className="text-xs text-amber-800 mt-1">마지막시간 5분 미만 또는 수령 대기중인 타이머 목록</p>
                     </div>
                     <div className="flex-1 mt-4">
                       {timers.filter(t => t.remainingSeconds <= 300).length === 0 ? (
@@ -934,10 +934,10 @@
                         <button onClick={handleSaveQuickTimerName} className="bg-stone-900 text-white text-xs px-4 py-2 rounded-xl font-bold">이름수정</button>
                       </div>
                       <div className="flex items-center gap-1 mt-2 text-xs font-bold">
-                        <input type="number" value={quickTimerDays} onChange={e => setQuickTimerDays(e.target.value)} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>일</span>
-                        <input type="number" value={quickTimerHours} onChange={e => setQuickTimerHours(e.target.value)} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>시</span>
-                        <input type="number" value={quickTimerMinutes} onChange={e => setQuickTimerMinutes(e.target.value)} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>분</span>
-                        <input type="number" value={quickTimerSeconds} onChange={e => setQuickTimerSeconds(e.target.value)} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>초</span>
+                        <input type="number" value={quickTimerDays} onChange={e => setQuickTimerDays(e.target.value)} onFocus={e => e.target.select()} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>일</span>
+                        <input type="number" value={quickTimerHours} onChange={e => setQuickTimerHours(e.target.value)} onFocus={e => e.target.select()} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>시</span>
+                        <input type="number" value={quickTimerMinutes} onChange={e => setQuickTimerMinutes(e.target.value)} onFocus={e => e.target.select()} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>분</span>
+                        <input type="number" value={quickTimerSeconds} onChange={e => setQuickTimerSeconds(e.target.value)} onFocus={e => e.target.select()} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>초</span>
                         <button onClick={handleApplyDirectQuickTimer} className="bg-amber-700 text-white px-3 py-1.5 rounded-xl font-bold ml-2">적용 (즉시출발)</button>
                       </div>
                     </div>
@@ -1037,21 +1037,21 @@
                       {c.isActive && (
                         <div className="space-y-4">
                           <div className="bg-stone-50 p-4 rounded-xl border font-mono flex justify-between text-base">
-                            <div className="flex flex-col"><span className="text-[9px] font-bold text-stone-400 block mb-1">현재 보유량</span><input type="number" value={c.current} onChange={e => handleUpdateCurrencyCurrent(c.id, e.target.value)} className="w-16 bg-transparent font-bold focus:outline-none" /></div>
+                            <div className="flex flex-col"><span className="text-[9px] font-bold text-stone-400 block mb-1">현재 보유량</span><input type="number" value={c.current} onChange={e => handleUpdateCurrencyCurrent(c.id, e.target.value)} onFocus={e => e.target.select()} className="w-16 bg-transparent font-bold focus:outline-none" /></div>
                             <span className="text-stone-400 self-end mb-1">/</span>
-                            <div className="flex flex-col items-end"><span className="text-[9px] font-bold text-stone-400 block mb-1">최대 상한치</span><input type="number" value={c.max} onChange={e => handleUpdateCurrencyMax(c.id, e.target.value)} className="w-16 bg-transparent text-right font-bold focus:outline-none" /></div>
+                            <div className="flex flex-col items-end"><span className="text-[9px] font-bold text-stone-400 block mb-1">최대 상한치</span><input type="number" value={c.max} onChange={e => handleUpdateCurrencyMax(c.id, e.target.value)} onFocus={e => e.target.select()} className="w-16 bg-transparent text-right font-bold focus:outline-none" /></div>
                           </div>
                           
                           <div className="flex justify-between items-center text-xs font-bold text-stone-600 bg-stone-50/50 p-2.5 rounded-xl border border-dashed">
                             <span>1개당 충전 기준 시간 (분):</span>
-                            <input type="number" value={c.rechargeTimeMinutes} onChange={e => handleUpdateCurrencyMinutes(c.id, e.target.value)} className="w-12 text-center bg-white border rounded-lg py-1 focus:outline-none" />
+                            <input type="number" value={c.rechargeTimeMinutes} onChange={e => handleUpdateCurrencyMinutes(c.id, e.target.value)} onFocus={e => e.target.select()} className="w-12 text-center bg-white border rounded-lg py-1 focus:outline-none" />
                           </div>
 
                           <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-100 space-y-1.5">
                             <span className="text-[10px] font-black text-amber-800 block">⏳ 다음 1단위 충전까지 남은 인게임 시간 동기화</span>
                             <div className="flex items-center gap-1.5 text-xs font-bold text-stone-600 justify-end">
-                              <input type="number" placeholder={String(curRemMin)} onBlur={e => handleUpdateCurrencyNextUnitSeconds(c.id, e.target.value, document.getElementById(`sec_${c.id}`).value)} id={`min_${c.id}`} className="w-12 text-center bg-white border rounded-lg py-1 focus:outline-none" /><span>분</span>
-                              <input type="number" placeholder={String(curRemSec)} onBlur={e => handleUpdateCurrencyNextUnitSeconds(c.id, document.getElementById(`min_${c.id}`).value, e.target.value)} id={`sec_${c.id}`} className="w-12 text-center bg-white border rounded-lg py-1 focus:outline-none" /><span>초 남음</span>
+                              <input type="number" placeholder={String(curRemMin)} onBlur={e => handleUpdateCurrencyNextUnitSeconds(c.id, e.target.value, document.getElementById(`sec_${c.id}`).value)} onFocus={e => e.target.select()} id={`min_${c.id}`} className="w-12 text-center bg-white border rounded-lg py-1 focus:outline-none" /><span>분</span>
+                              <input type="number" placeholder={String(curRemSec)} onBlur={e => handleUpdateCurrencyNextUnitSeconds(c.id, document.getElementById(`min_${c.id}`).value, e.target.value)} onFocus={e => e.target.select()} id={`sec_${c.id}`} className="w-12 text-center bg-white border rounded-lg py-1 focus:outline-none" /><span>초 남음</span>
                             </div>
                           </div>
 
@@ -1078,9 +1078,9 @@
                     <form onSubmit={handleAddCustomTimer} className="space-y-3">
                       <input type="text" placeholder="초시계 이름 (예: 연구소 가속, 쿠키 승급 등)" value={customTimerName} onChange={e => setCustomTimerName(e.target.value)} className="w-full border text-xs p-3 rounded-xl focus:outline-none bg-stone-50 font-bold" />
                       <div className="grid grid-cols-3 gap-2 text-xs font-bold">
-                        <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerDays} onChange={e => setCustomTimerDays(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">일</span></div>
-                        <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerHours} onChange={e => setCustomTimerHours(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">시간</span></div>
-                        <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerMinutes} onChange={e => setCustomTimerMinutes(e.target.value)} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">분</span></div>
+                        <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerDays} onChange={e => setCustomTimerDays(e.target.value)} onFocus={e => e.target.select()} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">일</span></div>
+                        <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerHours} onChange={e => setCustomTimerHours(e.target.value)} onFocus={e => e.target.select()} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">시간</span></div>
+                        <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerMinutes} onChange={e => setCustomTimerMinutes(e.target.value)} onFocus={e => e.target.select()} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">분</span></div>
                       </div>
                       <button type="submit" className="w-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold py-3 rounded-xl transition-colors">새 타이머 목록에 추가</button>
                     </form>
@@ -1184,9 +1184,9 @@
                 </div>
                 
                 <div className="grid grid-cols-3 gap-2 text-xs font-bold">
-                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">일</span><input type="number" value={inlineEditConfig.days} onChange={e => setInlineEditConfig({ ...inlineEditConfig, days: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
-                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">시간</span><input type="number" value={inlineEditConfig.hours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, hours: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
-                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">분</span><input type="number" value={inlineEditConfig.minutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, minutes: e.target.value })} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
+                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">일</span><input type="number" value={inlineEditConfig.days} onChange={e => setInlineEditConfig({ ...inlineEditConfig, days: e.target.value })} onFocus={e => e.target.select()} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
+                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">시간</span><input type="number" value={inlineEditConfig.hours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, hours: e.target.value })} onFocus={e => e.target.select()} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
+                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">분</span><input type="number" value={inlineEditConfig.minutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, minutes: e.target.value })} onFocus={e => e.target.select()} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
                 </div>
 
                 <div className="flex gap-2 justify-end pt-2 border-t">
