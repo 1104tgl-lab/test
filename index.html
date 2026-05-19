@@ -280,6 +280,28 @@
       const [customTimerHours, setCustomTimerHours] = useState('0');
       const [customTimerMinutes, setCustomTimerMinutes] = useState('0');
 
+      // 활성화된 알림창(Toast)을 띄워주는 함수 (누락 보완)
+      const showToast = (message) => {
+        setToastMessage(message);
+        setTimeout(() => setToastMessage(''), 3000);
+      };
+
+      // 타이머 완료 시 시스템 알림 및 토스트를 작동시키는 함수 (에러 원인 해결)
+      const triggerNotification = (title, body) => {
+        // 브라우저가 시스템 알림을 지원하는지 확인
+        if ("Notification" in window) {
+          if (Notification.permission === "granted") {
+            new Notification(title, { body });
+          } else if (Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+              if (permission === "granted") new Notification(title, { body });
+            });
+          }
+        }
+        // 알림과 동시에 화면 상단에도 토스트 메시지 표시
+        showToast(`🔔 ${title} : ${body}`);
+      };
+
       // --- ⚙️ 실시간 카운트다운 루프 엔진 ---
       useEffect(() => {
         const interval = setInterval(() => {
@@ -373,8 +395,8 @@
             lastUpdatedTime: Date.now()
           }, { merge: true });
         } catch (e) {
-          print(e);
-        }
+        console.error(e); //  개발자 도구 콘솔에 에러 출력
+      }
       }
 
       function dispatchStateUpdate(updates) {
