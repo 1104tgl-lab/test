@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>쿠키런: 킹덤 올인원 플래너 v6 🍪</title>
+  <title>쿠키런: 킹덤 올인원 플래너 v5.6 🍪</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght=300;400;500;700;900&display=swap" rel="stylesheet">
@@ -51,7 +51,7 @@
 
     const appId = 'copr-5d01f';
 
-    // 동기화 코드 생성 함수 (누락 보완)
+    // 동기화 코드 생성 함수
     function generateSyncCode() {
       return 'CRK-' + Math.random().toString(36).substring(2, 9).toUpperCase();
     }
@@ -251,7 +251,7 @@
       });
       const [selectedMineIds, setSelectedMineIds] = useState([]);
 
-      // --- 💾 오프라인 시간 흐름(Delta Time) 보정용 초기화 블록 ---
+      // --- 💾 오프라인 시간 흐름 보정용 초기화 블록 ---
       const getOfflineSeconds = () => {
         const lastActive = localStorage.getItem('crk_last_active');
         if (!lastActive) return 0;
@@ -307,14 +307,18 @@
       const [customTimerHours, setCustomTimerHours] = useState('0');
       const [customTimerMinutes, setCustomTimerMinutes] = useState('0');
 
-      // --- ⚙️ 유틸리티 기능 함수 정의 (토스트 & 브라우저 알림) ---
+      // --- ⚙️ 유틸리티 기능 함수 정의 (토스트 & 브라우저/파이썬 알림 연동) ---
       const showToast = (message) => {
         setToastMessage(message);
         setTimeout(() => setToastMessage(''), 3000);
       };
 
       const triggerNotification = (title, body) => {
-        if ("Notification" in window) {
+        // 💡 1순위: 파이썬 프로그램(pywebview) 환경인 경우 파이썬 기본 알림창 가동
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.notify) {
+          window.pywebview.api.notify(title, body);
+        } else if ("Notification" in window) {
+          // 💡 2순위 백업: 일반 브라우저 표준 알림 시스템 가동
           if (Notification.permission === "granted") {
             new Notification(title, { body });
           } else if (Notification.permission !== "denied") {
@@ -325,6 +329,27 @@
         }
         showToast(`🔔 ${title} : ${body}`);
       };
+
+      // --- 🔐 파이어베이스 익명 로그인 연동 (로컬 고정 해결 문제 해결) ---
+      useEffect(() => {
+        signInAnonymously(auth)
+          .catch(e => {
+            console.error("클라우드 서버 자동연결 실패:", e);
+            setCloudStatus('local_error');
+          });
+
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+          if (currentUser) {
+            setUser(currentUser);
+            setCloudStatus('connected'); // 연결 완료 상태로 전환 -> CLOUD LIVE 표시됨
+          } else {
+            setUser(null);
+            setCloudStatus('disconnected');
+          }
+        });
+
+        return () => unsubscribe();
+      }, []);
 
       // --- ⚙️ 실시간 카운트다운 루프 엔진 (백그라운드/오프라인 대응형) ---
       useEffect(() => {
@@ -496,7 +521,7 @@
         if (type === 'weekly') dispatchStateUpdate({ weeklyHomework: weeklyHomework.filter(i => i.id !== id) });
       }
 
-      // 일괄 완료/해제 처리 함수 (누락 보완)
+      // 일괄 완료/해제 처리 함수
       function handleBulkCheck(type, doneStatus) {
         if (type === 'daily') {
           dispatchStateUpdate({ dailyHomework: dailyHomework.map(h => ({ ...h, done: doneStatus })) });
@@ -505,7 +530,7 @@
         } else if (type === 'weekly') {
           dispatchStateUpdate({ weeklyHomework: weeklyHomework.map(h => ({ ...h, done: doneStatus })) });
         }
-        showToast(`📋 숙제 변경이 완료되었습니다.`);
+        showToast(`📋 숙제 상태가 일괄 변경되었습니다.`);
       }
 
       function handleAddCustomTimer(e) {
