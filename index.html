@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>쿠키런: 킹덤 올인원 플래너 v7 🍪</title>
+  <title>쿠키런: 킹덤 올인원 플래너 v5.6 🍪</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght=300;400;500;700;900&display=swap" rel="stylesheet">
@@ -368,7 +368,13 @@
         if (!user || cloudStatus !== 'connected') return;
 
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kingdoms', syncCode);
-        const unsubscribeSnapshot = onSnapshot(docRef, (docSnap) => {
+        
+        // { includeMetadataChanges: true } 옵션을 추가하여 로컬 쓰기 상태 변화를 실시간 감지함
+        const unsubscribeSnapshot = onSnapshot(docRef, { includeMetadataChanges: true }, (docSnap) => {
+          
+          // 💡 내가 업로드한 데이터 피드백 루프 신호는 가드 처리 (시간 고무줄 현상 및 멈춤 버그 방지 코어)
+          if (docSnap.metadata.hasPendingWrites) return;
+
           if (docSnap.exists()) {
             const cloudData = docSnap.data();
             
@@ -430,44 +436,42 @@
         return () => unsubscribeSnapshot();
       }, [user, cloudStatus, syncCode]);
 
-      // --- ⚙️ 실시간 카운트다운 루프 엔진 (고무줄 버그 및 시간 멈춤 전면 수정 모델) ---
+      // --- ⚙️ 실시간 카운트다운 루프 엔진 (파이썬 트레이 백그라운드 대기 및 클라우드 실시간 완벽 연동 보정본) ---
       useEffect(() => {
-        let lastTickTime = Date.now();
-        localStorage.setItem('crk_last_active', lastTickTime.toString());
+        localStorage.setItem('crk_last_active', Date.now().toString());
 
         const interval = setInterval(() => {
           const currentTime = new Date();
           setNow(currentTime);
 
-          const nowMs = Date.now();
-          // 정밀한 초 단위 경과 시간 추출 (오차 손실 제거)
-          const deltaSeconds = Math.floor((nowMs - lastTickTime) / 1000);
+          // 윈도우 백그라운드 대기 모드 진입 시 흘러간 절대적 시간 간격 복구 기능 장착
+          const lastActive = parseInt(localStorage.getItem('crk_last_active') || Date.now());
+          const deltaSeconds = Math.floor((Date.now() - lastActive) / 1000);
           
           if (deltaSeconds <= 0) return;
-          
-          // 흐른 시간만큼만 정확히 차감 기준점 업데이트
-          lastTickTime += deltaSeconds * 1000;
-          localStorage.setItem('crk_last_active', nowMs.toString());
+          localStorage.setItem('crk_last_active', Date.now().toString());
 
-          // 1. 재화(Currency) 흐름 동기화 (로컬 전용 가동)
+          // 1. 재화(Currency) 흐름 동기화 및 클라우드 푸시
           setCurrencies(prevCurrencies => {
+            let changed = false;
             const nextCurrencies = prevCurrencies.map(c => {
               if (!c.isActive || c.current >= c.max) return c;
+              changed = true;
               let rem = (c.remainingSeconds !== undefined ? c.remainingSeconds : c.rechargeTimeMinutes * 60) - deltaSeconds;
               let cur = c.current;
               const step = c.rechargeTimeMinutes * 60;
-              while (rem <= 0 && cur < c.max) { 
-                cur += 1; 
-                rem += step; 
-              }
+              while (rem <= 0 && cur < c.max) { cur += 1; rem += step; }
               if (cur >= c.max) rem = step;
               return { ...c, current: cur, remainingSeconds: rem };
             });
-            localStorage.setItem('crk_local_currencies', JSON.stringify(nextCurrencies));
+            if (changed) {
+              localStorage.setItem('crk_local_currencies', JSON.stringify(nextCurrencies));
+              saveToCloudEngineLevel({ currencies: nextCurrencies });
+            }
             return nextCurrencies;
           });
 
-          // 2. 풍요의 분수 연동 (로컬 전용 가동)
+          // 2. 풍요의 분수 연동 및 클라우드 푸시
           setFountainTime(prevFountain => {
             if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
               const updatedSec = Math.min(28800, prevFountain.elapsedSeconds + deltaSeconds);
@@ -476,12 +480,13 @@
                 triggerNotification("⛲ 풍요의 분수 최대 누적!", "풍요의 분수가 최대치(8시간)까지 생산되었습니다!");
               }
               localStorage.setItem('crk_local_fountain', JSON.stringify(nextFountain));
+              saveToCloudEngineLevel({ fountainTime: nextFountain });
               return nextFountain;
             }
             return prevFountain;
           });
 
-          // 3. 타이머 연동 (로컬 전용 가동)
+          // 3. 타이머 연동 및 클라우드 푸시
           setTimers(prevTimers => {
             let changed = false;
             const nextTimers = prevTimers.map(t => {
@@ -497,11 +502,12 @@
             });
             if (changed) {
               localStorage.setItem('crk_local_timers', JSON.stringify(nextTimers));
+              saveToCloudEngineLevel({ timers: nextTimers });
             }
             return nextTimers;
           });
 
-          // 4. 퀵 타이머 연동 (로컬 전용 가동)
+          // 4. 퀵 타이머 연동 및 클라우드 푸시
           setQuickTimer(prevQuick => {
             if (prevQuick.isRunning && prevQuick.remainingSeconds > 0) {
               const updatedSeconds = Math.max(0, prevQuick.remainingSeconds - deltaSeconds);
@@ -511,11 +517,11 @@
                 nextQuick.isRunning = false;
               }
               localStorage.setItem('crk_local_quick_timer', JSON.stringify(nextQuick));
+              saveToCloudEngineLevel({ quickTimer: nextQuick });
               return nextQuick;
             }
             return prevQuick;
           });
-
         }, 1000);
 
         return () => clearInterval(interval);
@@ -529,7 +535,7 @@
       const twelveHourDoneCount = twelveHourHomework.filter(h => h.done).length;
       const weeklyDoneCount = weeklyHomework.filter(h => h.done).length;
       
-      const totalCompletedTasks = dailyDoneCount + twelveHourDoneCount + weeklyDoneCount;
+      const totalCompletedTasks = dailyDoneCount + twelveHourHourDoneCount + weeklyDoneCount;
       const totalTasks = dailyHomework.length + twelveHourHomework.length + weeklyHomework.length;
       const totalProgressPercent = totalTasks > 0 ? Math.round((totalCompletedTasks / totalTasks) * 100) : 0;
 
@@ -674,7 +680,6 @@
         showToast("⏳ 새 커스텀 타이머가 생성되었습니다.");
       }
 
-      // 커스텀 타이머 삭제 기능 지원함
       function handleDeleteTimer(id) { dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) }); }
 
       function openInlineEditModal(t, editMode = 'delay') {
