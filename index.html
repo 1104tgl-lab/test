@@ -530,12 +530,12 @@
       // 우체국 상태 계산 변수 정의
       const postOfficeStatus = getPostOfficeStatus(now);
 
-      // 숙제 프로그레스 패널 변수 계산 정의
+      // 숙제 프로그레스 패널 변수 계산 정의 (🛠️ 오타 완벽 수정됨)
       const dailyDoneCount = dailyHomework.filter(h => h.done).length;
       const twelveHourDoneCount = twelveHourHomework.filter(h => h.done).length;
       const weeklyDoneCount = weeklyHomework.filter(h => h.done).length;
       
-      const totalCompletedTasks = dailyDoneCount + twelveHourHourDoneCount + weeklyDoneCount;
+      const totalCompletedTasks = dailyDoneCount + twelveHourDoneCount + weeklyDoneCount;
       const totalTasks = dailyHomework.length + twelveHourHomework.length + weeklyHomework.length;
       const totalProgressPercent = totalTasks > 0 ? Math.round((totalCompletedTasks / totalTasks) * 100) : 0;
 
