@@ -244,7 +244,36 @@
         isOpen: false, id: null, name: '', mode: 'delay', days: '0', hours: '0', minutes: '0'
       });
       const [selectedMineIds, setSelectedMineIds] = useState([]);
+useEffect(() => {
+        // 파이썬/로컬 저장소에서 데이터 불러오기
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.load_local_data) {
+            window.pywebview.api.load_local_data().then(strData => {
+                if (strData) {
+                    try {
+                        const saved = JSON.parse(strData);
+                        // 동기화 코드가 있다면 즉시 적용
+                        if (saved.syncCode) {
+                            localStorage.setItem('crk_sync_code_v4', saved.syncCode);
+                            setSyncCode(saved.syncCode);
+                            showToast("🔄 마지막 세션 코드로 자동 연동되었습니다.");
+                        }
+                    } catch(e) { console.error("로컬 데이터 로드 실패", e); }
+                }
+            });
+        }
+    }, []);
 
+    // 💾 [상태가 변할 때마다 파이썬 로컬에 자동 백업]
+    function dispatchStateUpdate(updates) {
+        // ... (기존 dispatchStateUpdate 로직 유지)
+        
+        // 파이썬으로 현재 상태 데이터 자동 전송
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.save_local_data) {
+            const currentState = { ...stateRef.current, ...updates };
+            window.pywebview.api.save_local_data(JSON.stringify(currentState));
+        }
+        saveToCloud(updates);
+    }
       // --- 💾 오프라인 시간 흐름 보정용 초기화 블록 ---
       const getOfflineSeconds = () => {
         const lastActive = localStorage.getItem('crk_last_active');
