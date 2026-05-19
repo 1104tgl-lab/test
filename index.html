@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>쿠키런: 킹덤 올인원 플래너 v5.6 🍪</title>
+  <title>쿠키런: 킹덤 올인원 플래너 v6 🍪</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght=300;400;500;700;900&display=swap" rel="stylesheet">
@@ -50,7 +50,6 @@
     const db = getFirestore(app);
 
     const appId = 'copr-5d01f';
-
     // 동기화 코드 생성 함수
     function generateSyncCode() {
       return 'CRK-' + Math.random().toString(36).substring(2, 9).toUpperCase();
@@ -168,7 +167,7 @@
         const nextOpenHour = (currentPeriodHour + 2) % 24;
         let targetDate = new Date(now);
         targetDate.setHours(nextOpenHour, 0, 0, 0);
-        if (nextOpenHour <= hour) targetDate.setDate(targetDate.setDate() + 1);
+        if (nextOpenHour <= hour) targetDate.setDate(targetDate.getDate() + 1);
         const diffMs = targetDate.getTime() - now.getTime();
         const diffHr = Math.floor(diffMs / 3600000);
         const diffMin = Math.floor((diffMs % 3600000) / 60000);
@@ -258,7 +257,6 @@
         return Math.floor((Date.now() - parseInt(lastActive)) / 1000);
       };
       const offlineSec = getOfflineSeconds();
-
       const [dailyHomework, setDailyHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_daily_hw')) || INITIAL_DAILY);
       const [twelveHourHomework, setTwelveHourHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_12h_hw')) || INITIAL_TWELVE);
       const [weeklyHomework, setWeeklyHomework] = useState(() => JSON.parse(localStorage.getItem('crk_local_weekly_hw')) || INITIAL_WEEKLY);
@@ -278,7 +276,6 @@
         }
         return local;
       });
-      
       const [timers, setTimers] = useState(() => {
         const local = JSON.parse(localStorage.getItem('crk_local_timers')) || DEFAULT_TIMERS;
         if (offlineSec > 0) {
@@ -290,7 +287,6 @@
         return local;
       });
       const [postOfficeClaims, setPostOfficeClaims] = useState(() => JSON.parse(localStorage.getItem('crk_local_claims')) || { date: new Date().toDateString(), claims: [false, false, false] });
-      
       const [fountainTime, setFountainTime] = useState(() => {
         const local = JSON.parse(localStorage.getItem('crk_local_fountain')) || { elapsedSeconds: 0, isRunning: false };
         if (offlineSec > 0 && local.isRunning) {
@@ -298,7 +294,6 @@
         }
         return local;
       });
-      
       const [quickTimer, setQuickTimer] = useState(() => {
         const local = JSON.parse(localStorage.getItem('crk_local_quick_timer')) || { name: '개인용 퀵 타이머 🎯', totalSeconds: 300, remainingSeconds: 300, isRunning: false };
         if (offlineSec > 0 && local.isRunning) {
@@ -322,12 +317,11 @@
       const [customTimerDays, setCustomTimerDays] = useState('0');
       const [customTimerHours, setCustomTimerHours] = useState('0');
       const [customTimerMinutes, setCustomTimerMinutes] = useState('0');
-
-      // 🛠️ 버그 픽스: 엔진 클로저 현상을 방지하기 위해 최신 참조(Ref) 생성 및 등록
+      
+      // 최신 참조(Ref) 생성 및 등록
       const stateRef = useRef();
       stateRef.current = { dailyHomework, twelveHourHomework, weeklyHomework, currencies, timers, postOfficeClaims, fountainTime, quickTimer, syncCode, user, cloudStatus };
-
-      // --- ⚙️ 유틸리티 기능 함수 정의 (토스트 & 브라우저/파이썬 알림 연동) ---
+      
       const showToast = (message) => {
         setToastMessage(message);
         setTimeout(() => setToastMessage(''), 3000);
@@ -369,7 +363,7 @@
         return () => unsubscribe();
       }, []);
 
-      // --- 📡 실시간 클라우드 데이터 수신 및 오프라인 경과시간 보정 엔진 ---
+      // --- 📡 실시간 클라우드 데이터 수신 ---
       useEffect(() => {
         if (!user || cloudStatus !== 'connected') return;
 
@@ -385,7 +379,6 @@
             
             if (cloudData.lastUpdatedTime) {
               const cloudOfflineSec = Math.floor((Date.now() - cloudData.lastUpdatedTime) / 1000);
-              
               if (cloudOfflineSec > 5) {
                 if (cloudData.currencies) {
                   const adjustedCurrencies = cloudData.currencies.map(c => {
@@ -437,7 +430,7 @@
         return () => unsubscribeSnapshot();
       }, [user, cloudStatus, syncCode]);
 
-      // --- ⚙️ 실시간 카운트다운 루프 엔진 (안전성 강화 모델 독립형 코어) ---
+      // --- ⚙️ 실시간 카운트다운 루프 엔진 ---
       useEffect(() => {
         localStorage.setItem('crk_last_active', Date.now().toString());
 
@@ -527,6 +520,40 @@
         return () => clearInterval(interval);
       }, []);
 
+      // ================= [ 여기부터 누락된 핵심 변수 및 함수 추가됨 ] =================
+
+      // 1. 우체국 상태 계산 변수 정의 (ReferenceError 해결)
+      const postOfficeStatus = getPostOfficeStatus(now);
+
+      // 2. 숙제 프로그레스 패널 변수 계산 정의 (누락 보완)
+      const dailyDoneCount = dailyHomework.filter(h => h.done).length;
+      const twelveHourDoneCount = twelveHourHomework.filter(h => h.done).length;
+      const weeklyDoneCount = weeklyHomework.filter(h => h.done).length;
+      
+      const totalCompletedTasks = dailyDoneCount + twelveHourDoneCount + weeklyDoneCount;
+      const totalTasks = dailyHomework.length + twelveHourHomework.length + weeklyHomework.length;
+      const totalProgressPercent = totalTasks > 0 ? Math.round((totalCompletedTasks / totalTasks) * 100) : 0;
+
+      // 3. 재화 조작 핸들러 함수 정의 (누락 보완)
+      function handleToggleCurrencyActive(id) {
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c) });
+      }
+      function handleUpdateCurrencyCurrent(id, value) {
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, current: parseInt(value) || 0 } : c) });
+      }
+      function handleUpdateCurrencyMax(id, value) {
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, max: parseInt(value) || 0 } : c) });
+      }
+      function handleUpdateCurrencyMinutes(id, value) {
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, rechargeTimeMinutes: parseInt(value) || 0 } : c) });
+      }
+      function handleUpdateCurrencyNextUnitSeconds(id, min, sec) {
+        const totalSecs = (parseInt(min) || 0) * 60 + (parseInt(sec) || 0);
+        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, remainingSeconds: totalSecs } : c) });
+      }
+
+      // =========================================================================
+
       const computedCurrencies = currencies.map(c => {
         const liveCurrent = c.current;
         const secondsToNext = c.current >= c.max ? 0 : c.remainingSeconds;
@@ -534,7 +561,6 @@
         return { ...c, liveCurrent, secondsToNext, secondsToFull };
       });
 
-      // 🛠️ 엔진 레벨 전용 크래시 방지형 클라우드 업로드 함수
       async function saveToCloudEngineLevel(newData) {
         const currentRef = stateRef.current;
         if (!currentRef.user || currentRef.cloudStatus !== 'connected') return;
@@ -588,31 +614,15 @@
         saveToCloud(updates);
       }
 
-      function startTimer(id) { 
-        dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: true } : t) });
-      }
-      
-      function pauseTimer(id) { 
-        dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: false } : t) });
-      }
-      
-      function resetTimer(id) { 
-        dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) });
-      }
-      
-      function accelerateTimer(id, minutesToSkip) {
-        dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - minutesToSkip * 60) } : t) });
-      }
+      function startTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: true } : t) }); }
+      function pauseTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: false } : t) }); }
+      function resetTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) }); }
+      function accelerateTimer(id, minutesToSkip) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - minutesToSkip * 60) } : t) }); }
 
       function handleBatchStartMines() {
-        if (selectedMineIds.length === 0) {
-          showToast("⚠️ 보낼 광산을 먼저 체크해 주세요.");
-          return;
-        }
+        if (selectedMineIds.length === 0) { showToast("⚠️ 보낼 광산을 먼저 체크해 주세요."); return; }
         const nextTimers = timers.map(t => {
-          if (selectedMineIds.includes(t.id)) {
-            return { ...t, remainingSeconds: t.remainingSeconds <= 0 ? t.totalSeconds : t.remainingSeconds, isRunning: true };
-          }
+          if (selectedMineIds.includes(t.id)) { return { ...t, remainingSeconds: t.remainingSeconds <= 0 ? t.totalSeconds : t.remainingSeconds, isRunning: true }; }
           return t;
         });
         dispatchStateUpdate({ timers: nextTimers });
@@ -624,12 +634,7 @@
         const completedMineIds = timers
           .filter(t => t.id.startsWith('mine_harvest_') && (t.remainingSeconds <= 0 || !t.isRunning))
           .map(t => t.id);
-        
-        if (completedMineIds.length === 0) {
-          showToast("🔔 현재 수령 완료 대기 중인 채굴 광산이 없습니다.");
-          return;
-        }
-
+        if (completedMineIds.length === 0) { showToast("🔔 현재 수령 완료 대기 중인 채굴 광산이 없습니다."); return; }
         const allCompletedChecked = completedMineIds.every(id => selectedMineIds.includes(id));
         if (allCompletedChecked) {
           setSelectedMineIds(selectedMineIds.filter(id => !completedMineIds.includes(id)));
@@ -655,13 +660,9 @@
       }
 
       function handleBulkCheck(type, doneStatus) {
-        if (type === 'daily') {
-          dispatchStateUpdate({ dailyHomework: dailyHomework.map(h => ({ ...h, done: doneStatus })) });
-        } else if (type === '12h') {
-          dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.map(h => ({ ...h, done: doneStatus })) });
-        } else if (type === 'weekly') {
-          dispatchStateUpdate({ weeklyHomework: weeklyHomework.map(h => ({ ...h, done: doneStatus })) });
-        }
+        if (type === 'daily') { dispatchStateUpdate({ dailyHomework: dailyHomework.map(h => ({ ...h, done: doneStatus })) }); } 
+        else if (type === '12h') { dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.map(h => ({ ...h, done: doneStatus })) }); } 
+        else if (type === 'weekly') { dispatchStateUpdate({ weeklyHomework: weeklyHomework.map(h => ({ ...h, done: doneStatus })) }); }
         showToast(`📋 숙제 상태가 일괄 변경되었습니다.`);
       }
 
@@ -669,22 +670,14 @@
         e.preventDefault();
         if (!customTimerName.trim()) return;
         const totalSecs = (parseInt(customTimerDays) || 0) * 86400 + (parseInt(customTimerHours) || 0) * 3600 + (parseInt(customTimerMinutes) || 0) * 60;
-        if (totalSecs <= 0) {
-          showToast("⚠️ 시간을 올바르게 입력해 주세요.");
-          return;
-        }
+        if (totalSecs <= 0) { showToast("⚠️ 시간을 올바르게 입력해 주세요."); return; }
         const newTimer = { id: 'custom_' + Date.now(), name: customTimerName.trim(), totalSeconds: totalSecs, remainingSeconds: totalSecs, isRunning: false, preset: false };
         dispatchStateUpdate({ timers: [...timers, newTimer] });
-        setCustomTimerName('');
-        setCustomTimerDays('0');
-        setCustomTimerHours('0');
-        setCustomTimerMinutes('0');
+        setCustomTimerName(''); setCustomTimerDays('0'); setCustomTimerHours('0'); setCustomTimerMinutes('0');
         showToast("⏳ 새 커스텀 타이머가 생성되었습니다.");
       }
 
-      function handleDeleteTimer(id) { 
-        dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) });
-      }
+      function handleDeleteTimer(id) { dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) }); }
 
       function openInlineEditModal(t, editMode = 'delay') {
         if (editMode === 'train') {
@@ -906,7 +899,7 @@
                         </span>
                       </div>
                       <h2 className="text-xl font-black mt-3 text-stone-900">⛲ 풍요의 분수 모니터</h2>
-                      
+                     
                       <div className="my-4 bg-white p-3.5 rounded-2xl border border-amber-100 shadow-inner">
                         <p className="text-[11px] font-bold text-stone-500">누적 누적 시간 (최대 8시간):</p>
                         <p className="font-mono text-2xl font-black text-amber-900 mt-1">
@@ -1216,7 +1209,6 @@
             {/* 4. 가속 센터 탭 */}
             {activeTab === 'timer' && (
               <div className="space-y-8">
-                {/* 상단 배치: 새 가속 타이머 등록 및 수동 강제 청소 버튼 */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border shadow-sm max-w-4xl">
                   <div className="space-y-4 flex-1 w-full">
                     <h3 className="font-black text-stone-900 text-sm">⚙️ 새 가속 타이머 직접 등록</h3>
@@ -1234,13 +1226,7 @@
                   <div className="border-t md:border-t-0 md:border-l border-stone-100 pt-4 md:pt-0 md:pl-6 shrink-0 flex flex-col justify-center h-full space-y-2">
                     <span className="text-[10px] font-black text-rose-500 block">⚠️ TIMER RESET TOOL</span>
                     <p className="text-[11px] text-stone-400 font-medium max-w-[200px]">타이머 구성이 꼬이거나 구조적인 동기화가 불가능할 때 사용하는 하드 리셋 장치입니다.</p>
-                    <button
-                      type="button"
-                      onClick={forceResetTimersStructure}
-                      className="bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-black px-4 py-2.5 rounded-xl transition-colors shadow-sm"
-                    >
-                      🔄 가속센터 구조 강제 초기화
-                    </button>
+                    <button type="button" onClick={forceResetTimersStructure} className="bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-black px-4 py-2.5 rounded-xl transition-colors shadow-sm">🔄 가속센터 구조 강제 초기화</button>
                   </div>
                 </div>
 
@@ -1260,20 +1246,8 @@
                       <p className="text-[11px] text-stone-300 mt-0.5">완료된 광산을 한 번에 체크하여 빠르게 재출발시키세요. 완료 시 자동 상단 고정 정렬이 가동됩니다.</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                      <button
-                        type="button"
-                        onClick={handleSelectCompletedMines}
-                        className="text-xs font-bold bg-white/10 px-3.5 py-2 rounded-xl border border-white/10 hover:bg-white/20 select-none text-white transition-all"
-                      >
-                        ✓ 완료된 채굴만 선택
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleBatchStartMines}
-                        className="bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-black px-4 py-2 rounded-xl shadow transition-colors flex items-center gap-1"
-                      >
-                        ⚡ 체크한 광산 한 번에 보내기 ({selectedMineIds.length}개)
-                      </button>
+                      <button type="button" onClick={handleSelectCompletedMines} className="text-xs font-bold bg-white/10 px-3.5 py-2 rounded-xl border border-white/10 hover:bg-white/20 select-none text-white transition-all">✓ 완료된 채굴만 선택</button>
+                      <button type="button" onClick={handleBatchStartMines} className="bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-black px-4 py-2 rounded-xl shadow transition-colors flex items-center gap-1">⚡ 체크한 광산 한 번에 보내기 ({selectedMineIds.length}개)</button>
                     </div>
                   </div>
                   
@@ -1294,9 +1268,7 @@
                 <div className="space-y-3">
                   <h4 className="text-sm font-black text-amber-800 flex items-center gap-1.5">➕ 내가 등록한 커스텀 추가 타이머 목록</h4>
                   {timers.filter(t => !t.preset).length === 0 ? (
-                    <div className="text-center py-6 bg-stone-100/50 rounded-2xl border border-dashed border-stone-200 text-xs text-stone-400 font-bold max-w-md">
-                      상단 등록창에서 추가한 커스텀 타이머가 여기에 정렬됩니다.
-                    </div>
+                    <div className="text-center py-6 bg-stone-100/50 rounded-2xl border border-dashed border-stone-200 text-xs text-stone-400 font-bold max-w-md">상단 등록창에서 추가한 커스텀 타이머가 여기에 정렬됩니다.</div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {getSortedTimers(timers.filter(t => !t.preset)).map(t => renderTimerCard(t))}
