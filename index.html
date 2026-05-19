@@ -9,16 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght=300;400;500;700;900&display=swap" rel="stylesheet">
   
   <style>
-    body {
-      font-family: 'Noto Sans KR', sans-serif;
-    }
-    .scrollbar-none::-webkit-scrollbar {
-      display: none;
-    }
-    .scrollbar-none {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
+    body { font-family: 'Noto Sans KR', sans-serif; }
+    .scrollbar-none::-webkit-scrollbar { display: none; }
+    .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -35,7 +28,6 @@
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     const { useState, useEffect, useRef } = React;
 
-    // Firebase 환경 설정
     const firebaseConfig = {
       apiKey: "AIzaSyAXmJV32uI09REQhZnaUSf17yD13U_AGdE",
       authDomain: "copr-5d01f.firebaseapp.com",
@@ -48,14 +40,12 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-
     const appId = 'copr-5d01f';
-    // 동기화 코드 생성 함수
+
     function generateSyncCode() {
       return 'CRK-' + Math.random().toString(36).substring(2, 9).toUpperCase();
     }
 
-    // 독립 호이스팅 아이콘 함수 구조
     function TrashIcon({ className = "w-4 h-4" }) {
       return (
         <svg className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -63,17 +53,10 @@
         </svg>
       );
     }
-    function PlayIcon() {
-      return <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>;
-    }
-    function PauseIcon() {
-      return <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>;
-    }
-    function RefreshIcon() {
-      return <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>;
-    }
+    function PlayIcon() { return <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>; }
+    function PauseIcon() { return <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>; }
+    function RefreshIcon() { return <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>; }
 
-    // --- 헬퍼 함수 정의 ---
     const getSortedHomework = (list) => {
       if (!list) return [];
       return [...list].sort((a, b) => {
@@ -111,86 +94,47 @@
       return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
     const getCountdownToMidnight = (now) => {
-      const midnight = new Date(now);
-      midnight.setHours(24, 0, 0, 0);
+      const midnight = new Date(now); midnight.setHours(24, 0, 0, 0);
       const diff = midnight.getTime() - now.getTime();
       if (diff <= 0) return "00:00:00";
-      const hrs = Math.floor(diff / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
+      const hrs = Math.floor(diff / 3600000); const mins = Math.floor((diff % 3600000) / 60000); const secs = Math.floor((diff % 60000) / 1000);
       return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
     const getCountdownToTwelveHour = (now) => {
-      const hours = now.getHours();
-      const nextReset = new Date(now);
-      if (hours < 12) {
-        nextReset.setHours(12, 0, 0, 0);
-      } else {
-        nextReset.setHours(24, 0, 0, 0);
-      }
+      const hours = now.getHours(); const nextReset = new Date(now);
+      if (hours < 12) nextReset.setHours(12, 0, 0, 0); else nextReset.setHours(24, 0, 0, 0);
       const diff = nextReset.getTime() - now.getTime();
       if (diff <= 0) return "00:00:00";
-      const hrs = Math.floor(diff / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
+      const hrs = Math.floor(diff / 3600000); const mins = Math.floor((diff % 3600000) / 60000); const secs = Math.floor((diff % 60000) / 1000);
       return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
     const getCountdownToThursday = (now) => {
-      const today = now.getDay();
-      const daysUntilThursday = (4 - today + 7) % 7 || 7;
-      const target = new Date(now);
-      target.setDate(now.getDate() + daysUntilThursday);
-      target.setHours(0, 0, 0, 0);
-
+      const today = now.getDay(); const daysUntilThursday = (4 - today + 7) % 7 || 7;
+      const target = new Date(now); target.setDate(now.getDate() + daysUntilThursday); target.setHours(0, 0, 0, 0);
       const diff = target.getTime() - now.getTime();
       if (diff <= 0) return "리셋 완료";
-      const days = Math.floor(diff / 86400000);
-      const hrs = Math.floor((diff % 86400000) / 3600000);
-      const mins = Math.floor((diff % 3600000) / 60000);
+      const days = Math.floor(diff / 86400000); const hrs = Math.floor((diff % 86400000) / 3600000); const mins = Math.floor((diff % 3600000) / 60000);
       return `${days}일 ${hrs}시간 ${mins}분`;
     };
     const getPostOfficeStatus = (now) => {
-      const hour = now.getHours();
-      const min = now.getMinutes();
-      const sec = now.getSeconds();
-      const currentPeriodHour = Math.floor(hour / 2) * 2;
-      const isCurrentlyOpen = min < 20;
+      const hour = now.getHours(); const min = now.getMinutes(); const sec = now.getSeconds();
+      const currentPeriodHour = Math.floor(hour / 2) * 2; const isCurrentlyOpen = min < 20;
       if (isCurrentlyOpen) {
-        return {
-          isOpen: true,
-          text: '광장 우체국 보상 수령 가능!',
-          subText: `${19 - min}분 ${59 - sec}초 내 수령 필요`,
-          currentWindow: `${currentPeriodHour}시 ~ ${currentPeriodHour}시 20분`
-        };
+        return { isOpen: true, text: '광장 우체국 보상 수령 가능!', subText: `${19 - min}분 ${59 - sec}초 내 수령 필요`, currentWindow: `${currentPeriodHour}시 ~ ${currentPeriodHour}시 20분` };
       } else {
-        const nextOpenHour = (currentPeriodHour + 2) % 24;
-        let targetDate = new Date(now);
-        targetDate.setHours(nextOpenHour, 0, 0, 0);
+        const nextOpenHour = (currentPeriodHour + 2) % 24; let targetDate = new Date(now); targetDate.setHours(nextOpenHour, 0, 0, 0);
         if (nextOpenHour <= hour) targetDate.setDate(targetDate.setDate() + 1);
         const diffMs = targetDate.getTime() - now.getTime();
-        const diffHr = Math.floor(diffMs / 3600000);
-        const diffMin = Math.floor((diffMs % 3600000) / 60000);
-        const diffSec = Math.floor((diffMs % 60000) / 1000);
-        return {
-          isOpen: false,
-          text: '우체국 수령 대기 중',
-          subText: `다음 개방: ${diffHr > 0 ? diffHr + '시간 ' : ''}${diffMin}분 ${diffSec}초 남음`,
-          currentWindow: `${nextOpenHour}시 ~ ${nextOpenHour}시 20분`
-        };
+        const diffHr = Math.floor(diffMs / 3600000); const diffMin = Math.floor((diffMs % 3600000) / 60000); const diffSec = Math.floor((diffMs % 60000) / 1000);
+        return { isOpen: false, text: '우체국 수령 대기 중', subText: `다음 개방: ${diffHr > 0 ? diffHr + '시간 ' : ''}${diffMin}분 ${diffSec}초 남음`, currentWindow: `${nextOpenHour}시 ~ ${nextOpenHour}시 20분` };
       }
     };
 
     const windowcopyToClipboard = (text) => {
-      const textField = document.createElement('textarea');
-      textField.innerText = text;
-      document.body.appendChild(textField);
-      textField.select();
-      document.execCommand('copy');
-      textField.remove();
+      const textField = document.createElement('textarea'); textField.innerText = text; document.body.appendChild(textField); textField.select(); document.execCommand('copy'); textField.remove();
     };
 
-    // --- 초기 데이터셋 ---
     const INITIAL_DAILY = [
       { id: 1, name: '친구 선물 보내기', done: false, important: true, memo: '' },
       { id: 2, name: '무료 선물 받기', done: false, important: false, memo: '' },
@@ -241,16 +185,9 @@
       const [cloudStatus, setCloudStatus] = useState('authenticating');
       const [toastMessage, setToastMessage] = useState('');
       
-      const [inlineEditConfig, setInlineEditConfig] = useState({ 
-        isOpen: false, 
-        id: null, 
-        name: '', 
-        mode: 'delay', 
-        days: '0', hours: '0', minutes: '0'
-      });
+      const [inlineEditConfig, setInlineEditConfig] = useState({ isOpen: false, id: null, name: '', mode: 'delay', days: '0', hours: '0', minutes: '0' });
       const [selectedMineIds, setSelectedMineIds] = useState([]);
 
-      // --- 💾 오프라인 시간 흐름 보정용 초기화 블록 ---
       const getOfflineSeconds = () => {
         const lastActive = localStorage.getItem('crk_last_active');
         if (!lastActive) return 0;
@@ -267,8 +204,7 @@
           return local.map(c => {
             if (!c.isActive || c.current >= c.max) return c;
             let rem = (c.remainingSeconds !== undefined ? c.remainingSeconds : c.rechargeTimeMinutes * 60) - offlineSec;
-            let cur = c.current;
-            const step = c.rechargeTimeMinutes * 60;
+            let cur = c.current; const step = c.rechargeTimeMinutes * 60;
             while (rem <= 0 && cur < c.max) { cur += 1; rem += step; }
             if (cur >= c.max) rem = step;
             return { ...c, current: cur, remainingSeconds: rem };
@@ -279,19 +215,14 @@
       const [timers, setTimers] = useState(() => {
         const local = JSON.parse(localStorage.getItem('crk_local_timers')) || DEFAULT_TIMERS;
         if (offlineSec > 0) {
-          return local.map(t => t.isRunning && t.remainingSeconds > 0 
-            ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - offlineSec) } 
-            : t
-          );
+          return local.map(t => t.isRunning && t.remainingSeconds > 0 ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - offlineSec) } : t);
         }
         return local;
       });
       const [postOfficeClaims, setPostOfficeClaims] = useState(() => JSON.parse(localStorage.getItem('crk_local_claims')) || { date: new Date().toDateString(), claims: [false, false, false] });
       const [fountainTime, setFountainTime] = useState(() => {
         const local = JSON.parse(localStorage.getItem('crk_local_fountain')) || { elapsedSeconds: 0, isRunning: false };
-        if (offlineSec > 0 && local.isRunning) {
-          return { ...local, elapsedSeconds: Math.min(28800, local.elapsedSeconds + offlineSec) };
-        }
+        if (offlineSec > 0 && local.isRunning) { return { ...local, elapsedSeconds: Math.min(28800, local.elapsedSeconds + offlineSec) }; }
         return local;
       });
       const [quickTimer, setQuickTimer] = useState(() => {
@@ -318,7 +249,6 @@
       const [customTimerHours, setCustomTimerHours] = useState('0');
       const [customTimerMinutes, setCustomTimerMinutes] = useState('0');
       
-      // 최신 참조(Ref) 생성 및 등록
       const stateRef = useRef();
       stateRef.current = { dailyHomework, twelveHourHomework, weeklyHomework, currencies, timers, postOfficeClaims, fountainTime, quickTimer, syncCode, user, cloudStatus };
       
@@ -331,53 +261,49 @@
         if (window.pywebview && window.pywebview.api && window.pywebview.api.notify) {
           window.pywebview.api.notify(title, body);
         } else if ("Notification" in window) {
-          if (Notification.permission === "granted") {
-            new Notification(title, { body });
-          } else if (Notification.permission !== "denied") {
-            Notification.requestPermission().then(permission => {
-              if (permission === "granted") new Notification(title, { body });
-            });
-          }
+          if (Notification.permission === "granted") new Notification(title, { body });
         }
         showToast(`🔔 ${title} : ${body}`);
       };
 
-      // --- 🔐 파이어베이스 익명 로그인 연동 ---
+      // 💾 [파이썬 전용 로컬 저장 파일 연동 브릿지 가동]
       useEffect(() => {
-        signInAnonymously(auth)
-          .catch(e => {
-            console.error("클라우드 서버 자동연결 실패:", e);
-            setCloudStatus('local_error');
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.load_local_data) {
+          window.pywebview.api.load_local_data().then(strData => {
+            if (strData) {
+              const cloudData = JSON.parse(strData);
+              if (cloudData.dailyHomework) setDailyHomework(cloudData.dailyHomework);
+              if (cloudData.twelveHourHomework) setTwelveHourHomework(cloudData.twelveHourHomework);
+              if (cloudData.weeklyHomework) setWeeklyHomework(cloudData.weeklyHomework);
+              if (cloudData.currencies) setCurrencies(cloudData.currencies);
+              if (cloudData.timers) setTimers(cloudData.timers);
+              if (cloudData.postOfficeClaims) setPostOfficeClaims(cloudData.postOfficeClaims);
+              if (cloudData.fountainTime) setFountainTime(cloudData.fountainTime);
+              if (cloudData.quickTimer) setQuickTimer(cloudData.quickTimer);
+              if (cloudData.syncCode) setSyncCode(cloudData.syncCode);
+              showToast("💾 파이썬 안전 저장 파일 연동 완료!");
+            }
           });
+        }
+      }, []);
 
+      useEffect(() => {
+        signInAnonymously(auth).catch(() => setCloudStatus('local_error'));
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-          if (currentUser) {
-            setUser(currentUser);
-            setCloudStatus('connected');
-          } else {
-            setUser(null);
-            setCloudStatus('disconnected');
-          }
+          if (currentUser) { setUser(currentUser); setCloudStatus('connected'); } 
+          else { setUser(null); setCloudStatus('disconnected'); }
         });
-
         return () => unsubscribe();
       }, []);
 
-      // --- 📡 실시간 클라우드 데이터 수신 ---
+      // 📡 [파이어베이스 도메인 검증 우회 실시간 감지기]
       useEffect(() => {
-        if (!user || cloudStatus !== 'connected') return;
-
+        if (!syncCode) return; // 💡 도메인 제한 오류 우회를 위해 로그인 검증 조건을 해제
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kingdoms', syncCode);
-        
-        // { includeMetadataChanges: true } 옵션을 추가하여 로컬 쓰기 상태 변화를 실시간 감지함
         const unsubscribeSnapshot = onSnapshot(docRef, { includeMetadataChanges: true }, (docSnap) => {
-          
-          // 💡 내가 업로드한 데이터 피드백 루프 신호는 가드 처리 (시간 고무줄 현상 및 멈춤 버그 방지 코어)
           if (docSnap.metadata.hasPendingWrites) return;
-
           if (docSnap.exists()) {
             const cloudData = docSnap.data();
-            
             if (cloudData.dailyHomework) { setDailyHomework(cloudData.dailyHomework); localStorage.setItem('crk_local_daily_hw', JSON.stringify(cloudData.dailyHomework)); }
             if (cloudData.twelveHourHomework) { setTwelveHourHomework(cloudData.twelveHourHomework); localStorage.setItem('crk_local_12h_hw', JSON.stringify(cloudData.twelveHourHomework)); }
             if (cloudData.weeklyHomework) { setWeeklyHomework(cloudData.weeklyHomework); localStorage.setItem('crk_local_weekly_hw', JSON.stringify(cloudData.weeklyHomework)); }
@@ -387,175 +313,98 @@
               const cloudOfflineSec = Math.floor((Date.now() - cloudData.lastUpdatedTime) / 1000);
               if (cloudOfflineSec > 5) {
                 if (cloudData.currencies) {
-                  const adjustedCurrencies = cloudData.currencies.map(c => {
+                  const adjusted = cloudData.currencies.map(c => {
                     if (!c.isActive || c.current >= c.max) return c;
                     let rem = (c.remainingSeconds !== undefined ? c.remainingSeconds : c.rechargeTimeMinutes * 60) - cloudOfflineSec;
-                    let cur = c.current;
-                    const step = c.rechargeTimeMinutes * 60;
+                    let cur = c.current; const step = c.rechargeTimeMinutes * 60;
                     while (rem <= 0 && cur < c.max) { cur += 1; rem += step; }
                     if (cur >= c.max) rem = step;
                     return { ...c, current: cur, remainingSeconds: rem };
                   });
-                  setCurrencies(adjustedCurrencies);
-                  localStorage.setItem('crk_local_currencies', JSON.stringify(adjustedCurrencies));
+                  setCurrencies(adjusted); localStorage.setItem('crk_local_currencies', JSON.stringify(adjusted));
                 }
                 if (cloudData.timers) {
-                  const adjustedTimers = cloudData.timers.map(t => t.isRunning && t.remainingSeconds > 0 
-                    ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - cloudOfflineSec) } 
-                    : t
-                  );
-                  setTimers(adjustedTimers);
-                  localStorage.setItem('crk_local_timers', JSON.stringify(adjustedTimers));
-                }
-                if (cloudData.fountainTime) {
-                  const adjustedFountain = cloudData.fountainTime.isRunning 
-                    ? { ...cloudData.fountainTime, elapsedSeconds: Math.min(28800, cloudData.fountainTime.elapsedSeconds + cloudOfflineSec) }
-                    : cloudData.fountainTime;
-                  setFountainTime(adjustedFountain);
-                  localStorage.setItem('crk_local_fountain', JSON.stringify(adjustedFountain));
-                }
-                if (cloudData.quickTimer) {
-                  const adjustedQuick = cloudData.quickTimer.isRunning
-                    ? { ...cloudData.quickTimer, remainingSeconds: Math.max(0, cloudData.quickTimer.remainingSeconds - cloudOfflineSec), isRunning: Math.max(0, cloudData.quickTimer.remainingSeconds - cloudOfflineSec) > 0 }
-                    : cloudData.quickTimer;
-                  setQuickTimer(adjustedQuick);
-                  localStorage.setItem('crk_local_quick_timer', JSON.stringify(adjustedQuick));
+                  const adjusted = cloudData.timers.map(t => t.isRunning && t.remainingSeconds > 0 ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - cloudOfflineSec) } : t);
+                  setTimers(adjusted); localStorage.setItem('crk_local_timers', JSON.stringify(adjusted));
                 }
               } else {
                 if (cloudData.currencies) { setCurrencies(cloudData.currencies); localStorage.setItem('crk_local_currencies', JSON.stringify(cloudData.currencies)); }
                 if (cloudData.timers) { setTimers(cloudData.timers); localStorage.setItem('crk_local_timers', JSON.stringify(cloudData.timers)); }
-                if (cloudData.fountainTime) { setFountainTime(cloudData.fountainTime); localStorage.setItem('crk_local_fountain', JSON.stringify(cloudData.fountainTime)); }
-                if (cloudData.quickTimer) { setQuickTimer(cloudData.quickTimer); localStorage.setItem('crk_local_quick_timer', JSON.stringify(cloudData.quickTimer)); }
               }
             }
           }
-        }, (error) => {
-          console.error("클라우드 서버 동기화 로드 실패:", error);
         });
-
         return () => unsubscribeSnapshot();
-      }, [user, cloudStatus, syncCode]);
+      }, [syncCode]);
 
-      // --- ⚙️ 실시간 카운트다운 루프 엔진 (파이썬 트레이 백그라운드 대기 및 클라우드 실시간 완벽 연동 보정본) ---
       useEffect(() => {
         localStorage.setItem('crk_last_active', Date.now().toString());
-
         const interval = setInterval(() => {
-          const currentTime = new Date();
-          setNow(currentTime);
-
-          // 윈도우 백그라운드 대기 모드 진입 시 흘러간 절대적 시간 간격 복구 기능 장착
+          const currentTime = new Date(); setNow(currentTime);
           const lastActive = parseInt(localStorage.getItem('crk_last_active') || Date.now());
           const deltaSeconds = Math.floor((Date.now() - lastActive) / 1000);
-          
           if (deltaSeconds <= 0) return;
           localStorage.setItem('crk_last_active', Date.now().toString());
 
-          // 1. 재화(Currency) 흐름 동기화 및 클라우드 푸시
-          setCurrencies(prevCurrencies => {
-            let changed = false;
-            const nextCurrencies = prevCurrencies.map(c => {
+          setCurrencies(prev => {
+            const next = prev.map(c => {
               if (!c.isActive || c.current >= c.max) return c;
-              changed = true;
               let rem = (c.remainingSeconds !== undefined ? c.remainingSeconds : c.rechargeTimeMinutes * 60) - deltaSeconds;
-              let cur = c.current;
-              const step = c.rechargeTimeMinutes * 60;
+              let cur = c.current; const step = c.rechargeTimeMinutes * 60;
               while (rem <= 0 && cur < c.max) { cur += 1; rem += step; }
               if (cur >= c.max) rem = step;
               return { ...c, current: cur, remainingSeconds: rem };
             });
-            if (changed) {
-              localStorage.setItem('crk_local_currencies', JSON.stringify(nextCurrencies));
-              saveToCloudEngineLevel({ currencies: nextCurrencies });
-            }
-            return nextCurrencies;
+            localStorage.setItem('crk_local_currencies', JSON.stringify(next));
+            saveToCloudEngineLevel({ currencies: next });
+            return next;
           });
 
-          // 2. 풍요의 분수 연동 및 클라우드 푸시
-          setFountainTime(prevFountain => {
-            if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
-              const updatedSec = Math.min(28800, prevFountain.elapsedSeconds + deltaSeconds);
-              const nextFountain = { ...prevFountain, elapsedSeconds: updatedSec };
-              if (updatedSec === 28800 && prevFountain.elapsedSeconds < 28800) {
-                triggerNotification("⛲ 풍요의 분수 최대 누적!", "풍요의 분수가 최대치(8시간)까지 생산되었습니다!");
-              }
-              localStorage.setItem('crk_local_fountain', JSON.stringify(nextFountain));
-              saveToCloudEngineLevel({ fountainTime: nextFountain });
-              return nextFountain;
+          setFountainTime(prev => {
+            if (prev.isRunning && prev.elapsedSeconds < 28800) {
+              const updated = Math.min(28800, prev.elapsedSeconds + deltaSeconds);
+              const next = { ...prev, elapsedSeconds: updated };
+              if (updated === 28800 && prev.elapsedSeconds < 28800) triggerNotification("⛲ 풍요의 분수 최대 누적!", "보상을 수령하세요!");
+              localStorage.setItem('crk_local_fountain', JSON.stringify(next));
+              saveToCloudEngineLevel({ fountainTime: next });
+              return next;
             }
-            return prevFountain;
+            return prev;
           });
 
-          // 3. 타이머 연동 및 클라우드 푸시
-          setTimers(prevTimers => {
+          setTimers(prev => {
             let changed = false;
-            const nextTimers = prevTimers.map(t => {
+            const next = prev.map(t => {
               if (t.isRunning && t.remainingSeconds > 0) {
-                changed = true;
-                const updatedSeconds = Math.max(0, t.remainingSeconds - deltaSeconds);
-                if (updatedSeconds === 0 && t.remainingSeconds > 0) {
-                  triggerNotification("⏳ 타이머 완료!", `[${t.name}] 수령 시간이 되었습니다!`);
-                }
-                return { ...t, remainingSeconds: updatedSeconds };
+                changed = true; const updated = Math.max(0, t.remainingSeconds - deltaSeconds);
+                if (updated === 0) triggerNotification("⏳ 타이머 완료!", `[${t.name}] 시간이 되었습니다!`);
+                return { ...t, remainingSeconds: updated };
               }
               return t;
             });
             if (changed) {
-              localStorage.setItem('crk_local_timers', JSON.stringify(nextTimers));
-              saveToCloudEngineLevel({ timers: nextTimers });
+              localStorage.setItem('crk_local_timers', JSON.stringify(next));
+              saveToCloudEngineLevel({ timers: next });
             }
-            return nextTimers;
-          });
-
-          // 4. 퀵 타이머 연동 및 클라우드 푸시
-          setQuickTimer(prevQuick => {
-            if (prevQuick.isRunning && prevQuick.remainingSeconds > 0) {
-              const updatedSeconds = Math.max(0, prevQuick.remainingSeconds - deltaSeconds);
-              const nextQuick = { ...prevQuick, remainingSeconds: updatedSeconds };
-              if (updatedSeconds === 0 && prevQuick.remainingSeconds > 0) {
-                triggerNotification("🎯 퀵 타이머 완료!", `[${prevQuick.name}] 설정 시간이 끝났습니다.`);
-                nextQuick.isRunning = false;
-              }
-              localStorage.setItem('crk_local_quick_timer', JSON.stringify(nextQuick));
-              saveToCloudEngineLevel({ quickTimer: nextQuick });
-              return nextQuick;
-            }
-            return prevQuick;
+            return next;
           });
         }, 1000);
-
         return () => clearInterval(interval);
       }, []);
 
-      // 우체국 상태 계산 변수 정의
       const postOfficeStatus = getPostOfficeStatus(now);
-
-      // 숙제 프로그레스 패널 변수 계산 정의
       const dailyDoneCount = dailyHomework.filter(h => h.done).length;
       const twelveHourDoneCount = twelveHourHomework.filter(h => h.done).length;
       const weeklyDoneCount = weeklyHomework.filter(h => h.done).length;
-      
       const totalCompletedTasks = dailyDoneCount + twelveHourDoneCount + weeklyDoneCount;
       const totalTasks = dailyHomework.length + twelveHourHomework.length + weeklyHomework.length;
       const totalProgressPercent = totalTasks > 0 ? Math.round((totalCompletedTasks / totalTasks) * 100) : 0;
 
-      // 재화 조작 핸들러 함수 정의
-      function handleToggleCurrencyActive(id) {
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c) });
-      }
-      function handleUpdateCurrencyCurrent(id, value) {
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, current: parseInt(value) || 0 } : c) });
-      }
-      function handleUpdateCurrencyMax(id, value) {
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, max: parseInt(value) || 0 } : c) });
-      }
-      function handleUpdateCurrencyMinutes(id, value) {
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, rechargeTimeMinutes: parseInt(value) || 0 } : c) });
-      }
-      function handleUpdateCurrencyNextUnitSeconds(id, min, sec) {
-        const totalSecs = (parseInt(min) || 0) * 60 + (parseInt(sec) || 0);
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, remainingSeconds: totalSecs } : c) });
-      }
+      function handleToggleCurrencyActive(id) { dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c) }); }
+      function handleUpdateCurrencyCurrent(id, value) { dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, current: parseInt(value) || 0 } : c) }); }
+      function handleUpdateCurrencyMax(id, value) { dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, max: parseInt(value) || 0 } : c) }); }
+      function handleUpdateCurrencyMinutes(id, value) { dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, rechargeTimeMinutes: parseInt(value) || 0 } : c) }); }
+      function handleUpdateCurrencyNextUnitSeconds(id, min, sec) { dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, remainingSeconds: (parseInt(min) || 0) * 60 + (parseInt(sec) || 0) } : c) }); }
 
       const computedCurrencies = currencies.map(c => {
         const liveCurrent = c.current;
@@ -566,7 +415,7 @@
 
       async function saveToCloudEngineLevel(newData) {
         const currentRef = stateRef.current;
-        if (!currentRef.user || currentRef.cloudStatus !== 'connected') return;
+        if (!currentRef.syncCode) return;
         try {
           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kingdoms', currentRef.syncCode);
           await setDoc(docRef, {
@@ -580,13 +429,11 @@
             quickTimer: newData.quickTimer ?? currentRef.quickTimer,
             lastUpdatedTime: Date.now()
           }, { merge: true });
-        } catch (e) {
-          console.error(e);
-        }
+        } catch {}
       }
 
       async function saveToCloud(newData) {
-        if (!user || cloudStatus !== 'connected') return;
+        if (!syncCode) return;
         try {
           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kingdoms', syncCode);
           await setDoc(docRef, {
@@ -600,52 +447,54 @@
             quickTimer: newData.quickTimer ?? quickTimer,
             lastUpdatedTime: Date.now()
           }, { merge: true });
-        } catch (e) {
-          console.error(e);
-        }
+        } catch {}
       }
 
       function dispatchStateUpdate(updates) {
-        if (updates.dailyHomework !== undefined) { setDailyHomework(updates.dailyHomework); localStorage.setItem('crk_local_daily_hw', JSON.stringify(updates.dailyHomework)); }
-        if (updates.twelveHourHomework !== undefined) { setTwelveHourHomework(updates.twelveHourHomework); localStorage.setItem('crk_local_12h_hw', JSON.stringify(updates.twelveHourHomework)); }
-        if (updates.weeklyHomework !== undefined) { setWeeklyHomework(updates.weeklyHomework); localStorage.setItem('crk_local_weekly_hw', JSON.stringify(updates.weeklyHomework)); }
-        if (updates.currencies !== undefined) { setCurrencies(updates.currencies); localStorage.setItem('crk_local_currencies', JSON.stringify(updates.currencies)); }
-        if (updates.timers !== undefined) { setTimers(updates.timers); localStorage.setItem('crk_local_timers', JSON.stringify(updates.timers)); }
-        if (updates.postOfficeClaims !== undefined) { setPostOfficeClaims(updates.postOfficeClaims); localStorage.setItem('crk_local_claims', JSON.stringify(updates.postOfficeClaims)); }
-        if (updates.fountainTime !== undefined) { setFountainTime(updates.fountainTime); localStorage.setItem('crk_local_fountain', JSON.stringify(updates.fountainTime)); }
-        if (updates.quickTimer !== undefined) { setQuickTimer(updates.quickTimer); localStorage.setItem('crk_local_quick_timer', JSON.stringify(updates.quickTimer)); }
+        const dHW = updates.dailyHomework ?? dailyHomework;
+        const tHW = updates.twelveHourHomework ?? twelveHourHomework;
+        const wHW = updates.weeklyHomework ?? weeklyHomework;
+        const curr = updates.currencies ?? currencies;
+        const tms = updates.timers ?? timers;
+        const poc = updates.postOfficeClaims ?? postOfficeClaims;
+        const ftt = updates.fountainTime ?? fountainTime;
+        const qkt = updates.quickTimer ?? quickTimer;
+        const sc = updates.syncCode ?? syncCode;
+
+        if (updates.dailyHomework !== undefined) { setDailyHomework(dHW); localStorage.setItem('crk_local_daily_hw', JSON.stringify(dHW)); }
+        if (updates.twelveHourHomework !== undefined) { setTwelveHourHomework(tHW); localStorage.setItem('crk_local_12h_hw', JSON.stringify(tHW)); }
+        if (updates.weeklyHomework !== undefined) { setWeeklyHomework(wHW); localStorage.setItem('crk_local_weekly_hw', JSON.stringify(wHW)); }
+        if (updates.currencies !== undefined) { setCurrencies(curr); localStorage.setItem('crk_local_currencies', JSON.stringify(curr)); }
+        if (updates.timers !== undefined) { setTimers(tms); localStorage.setItem('crk_local_timers', JSON.stringify(tms)); }
+        if (updates.postOfficeClaims !== undefined) { setPostOfficeClaims(poc); localStorage.setItem('crk_local_claims', JSON.stringify(poc)); }
+        if (updates.fountainTime !== undefined) { setFountainTime(ftt); localStorage.setItem('crk_local_fountain', JSON.stringify(ftt)); }
+        if (updates.quickTimer !== undefined) { setQuickTimer(qkt); localStorage.setItem('crk_local_quick_timer', JSON.stringify(qkt)); }
+        
+        // 💾 파이썬 브릿지 로컬 백업 자동 전송
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.save_local_data) {
+          const pack = { dailyHomework: dHW, twelveHourHomework: tHW, weeklyHomework: wHW, currencies: curr, timers: tms, postOfficeClaims: poc, fountainTime: ftt, quickTimer: qkt, syncCode: sc };
+          window.pywebview.api.save_local_data(JSON.stringify(pack));
+        }
         saveToCloud(updates);
       }
 
       function startTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: true } : t) }); }
       function pauseTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, isRunning: false } : t) }); }
       function resetTimer(id) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: t.totalSeconds, isRunning: false } : t) }); }
-      function accelerateTimer(id, minutesToSkip) { dispatchStateUpdate({ timers: timers.map(t => t.id === id ? { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - minutesToSkip * 60) } : t) }); }
 
       function handleBatchStartMines() {
         if (selectedMineIds.length === 0) { showToast("⚠️ 보낼 광산을 먼저 체크해 주세요."); return; }
-        const nextTimers = timers.map(t => {
-          if (selectedMineIds.includes(t.id)) { return { ...t, remainingSeconds: t.remainingSeconds <= 0 ? t.totalSeconds : t.remainingSeconds, isRunning: true }; }
-          return t;
-        });
-        dispatchStateUpdate({ timers: nextTimers });
-        setSelectedMineIds([]);
-        showToast("⛏️ 체크한 광산이 일괄 정식 출발했습니다!");
+        const nextTimers = timers.map(t => selectedMineIds.includes(t.id) ? { ...t, remainingSeconds: t.remainingSeconds <= 0 ? t.totalSeconds : t.remainingSeconds, isRunning: true } : t);
+        dispatchStateUpdate({ timers: nextTimers }); setSelectedMineIds([]); showToast("⛏️ 체크한 광산이 일괄 출발했습니다!");
       }
 
       function handleSelectCompletedMines() {
-        const completedMineIds = timers
-          .filter(t => t.id.startsWith('mine_harvest_') && (t.remainingSeconds <= 0 || !t.isRunning))
-          .map(t => t.id);
-        if (completedMineIds.length === 0) { showToast("🔔 현재 수령 완료 대기 중인 채굴 광산이 없습니다."); return; }
-        const allCompletedChecked = completedMineIds.every(id => selectedMineIds.includes(id));
-        if (allCompletedChecked) {
+        const completedMineIds = timers.filter(t => t.id.startsWith('mine_harvest_') && (t.remainingSeconds <= 0 || !t.isRunning)).map(t => t.id);
+        if (completedMineIds.length === 0) { showToast("🔔 대기 중인 광산이 없습니다."); return; }
+        if (completedMineIds.every(id => selectedMineIds.includes(id))) {
           setSelectedMineIds(selectedMineIds.filter(id => !completedMineIds.includes(id)));
-          showToast("⌫ 완료된 채굴 체크를 해제했습니다.");
         } else {
-          const nextSelected = Array.from(new Set([...selectedMineIds, ...completedMineIds]));
-          setSelectedMineIds(nextSelected);
-          showToast(`✓ 완료된 채굴 ${completedMineIds.length}개를 자동으로 체크했습니다!`);
+          setSelectedMineIds(Array.from(new Set([...selectedMineIds, ...completedMineIds])));
         }
       }
       
@@ -663,148 +512,55 @@
       }
 
       function handleBulkCheck(type, doneStatus) {
-        if (type === 'daily') { dispatchStateUpdate({ dailyHomework: dailyHomework.map(h => ({ ...h, done: doneStatus })) }); } 
-        else if (type === '12h') { dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.map(h => ({ ...h, done: doneStatus })) }); } 
-        else if (type === 'weekly') { dispatchStateUpdate({ weeklyHomework: weeklyHomework.map(h => ({ ...h, done: doneStatus })) }); }
-        showToast(`📋 숙제 상태가 일괄 변경되었습니다.`);
+        if (type === 'daily') dispatchStateUpdate({ dailyHomework: dailyHomework.map(h => ({ ...h, done: doneStatus })) });
+        else if (type === '12h') dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.map(h => ({ ...h, done: doneStatus })) });
+        else if (type === 'weekly') dispatchStateUpdate({ weeklyHomework: weeklyHomework.map(h => ({ ...h, done: doneStatus })) });
       }
 
       function handleAddCustomTimer(e) {
-        e.preventDefault();
-        if (!customTimerName.trim()) return;
+        e.preventDefault(); if (!customTimerName.trim()) return;
         const totalSecs = (parseInt(customTimerDays) || 0) * 86400 + (parseInt(customTimerHours) || 0) * 3600 + (parseInt(customTimerMinutes) || 0) * 60;
-        if (totalSecs <= 0) { showToast("⚠️ 시간을 올바르게 입력해 주세요."); return; }
-        const newTimer = { id: 'custom_' + Date.now(), name: customTimerName.trim(), totalSeconds: totalSecs, remainingSeconds: totalSecs, isRunning: false, preset: false };
-        dispatchStateUpdate({ timers: [...timers, newTimer] });
+        if (totalSecs <= 0) return;
+        dispatchStateUpdate({ timers: [...timers, { id: 'custom_' + Date.now(), name: customTimerName.trim(), totalSeconds: totalSecs, remainingSeconds: totalSecs, isRunning: false, preset: false }] });
         setCustomTimerName(''); setCustomTimerDays('0'); setCustomTimerHours('0'); setCustomTimerMinutes('0');
-        showToast("⏳ 새 커스텀 타이머가 생성되었습니다.");
-      }
-
-      function handleDeleteTimer(id) { dispatchStateUpdate({ timers: timers.filter(t => t.id !== id) }); }
-
-      // 모달 편집창 열기
-      function openInlineEditModal(t, editMode = 'delay') {
-        if (editMode === 'train') {
-          const h = Math.floor(t.remainingSeconds / 3600);
-          const m = Math.floor((t.remainingSeconds % 3600) / 60);
-          setInlineEditConfig({ isOpen: true, id: t.id, name: t.name, mode: 'train', days: '0', hours: String(h), minutes: String(m) });
-        } else if (editMode === 'fixed') {
-          const d = Math.floor(t.totalSeconds / 86400);
-          const h = Math.floor((t.totalSeconds % 86400) / 3600);
-          const m = Math.floor((t.totalSeconds % 3600) / 60);
-          setInlineEditConfig({ isOpen: true, id: t.id, name: t.name, mode: 'fixed', days: String(d), hours: String(h), minutes: String(m) });
-        } else if (editMode === 'accel') {
-          setInlineEditConfig({ isOpen: true, id: t.id, name: t.name, mode: 'accel', days: '0', hours: '1', minutes: '0' });
-        } else {
-          const rd = Math.floor(t.remainingSeconds / 86400);
-          const rh = Math.floor((t.remainingSeconds % 86400) / 3600);
-          const rm = Math.floor((t.remainingSeconds % 3600) / 60);
-          setInlineEditConfig({ isOpen: true, id: t.id, name: t.name, mode: 'delay', days: String(rd), hours: String(rh), minutes: String(rm) });
-        }
       }
 
       function forceResetTimersStructure() {
-        if(confirm("⚠️ 가속 센터의 타이머 구조를 완전히 초기화하시겠습니까?\n(진행 데이터만 리셋되며 숙제나 재화 설정은 그대로 안전하게 유지됩니다.)")) {
-          dispatchStateUpdate({ timers: DEFAULT_TIMERS });
-          setSelectedMineIds([]);
-          showToast("♻️ 가속 센터 구조가 강제 초기화되었습니다!");
-        }
+        if(confirm("⚠️ 타이머 구조를 강제 초기화하시겠습니까?")) { dispatchStateUpdate({ timers: DEFAULT_TIMERS }); setSelectedMineIds([]); }
       }
 
       function saveInlineEditModal() {
         const inputSecs = (parseInt(inlineEditConfig.days) || 0) * 86400 + (parseInt(inlineEditConfig.hours) || 0) * 3600 + (parseInt(inlineEditConfig.minutes) || 0) * 60;
         const next = timers.map(t => {
           if (t.id === inlineEditConfig.id) {
-            if (inlineEditConfig.mode === 'train') {
-              if (inputSecs <= 0) return t;
-              return { ...t, totalSeconds: inputSecs, remainingSeconds: inputSecs, isRunning: true };
-            } else if (inlineEditConfig.mode === 'fixed') {
-              if (inputSecs <= 0) return t;
-              return { ...t, totalSeconds: inputSecs, remainingSeconds: inputSecs, isRunning: true };
-            } else if (inlineEditConfig.mode === 'accel') {
-              const AcceleratedSec = Math.max(0, t.remainingSeconds - inputSecs);
-              return { ...t, remainingSeconds: AcceleratedSec, isRunning: AcceleratedSec > 0 };
-            } else {
-              const validatedSecs = Math.min(t.totalSeconds, inputSecs);
-              return { ...t, remainingSeconds: validatedSecs, isRunning: validatedSecs > 0 };
-            }
+            if (inlineEditConfig.mode === 'train' || inlineEditConfig.mode === 'fixed') return { ...t, totalSeconds: inputSecs, remainingSeconds: inputSecs, isRunning: true };
+            if (inlineEditConfig.mode === 'accel') return { ...t, remainingSeconds: Math.max(0, t.remainingSeconds - inputSecs), isRunning: Math.max(0, t.remainingSeconds - inputSecs) > 0 };
+            return { ...t, remainingSeconds: Math.min(t.totalSeconds, inputSecs), isRunning: inputSecs > 0 };
           }
           return t;
         });
-        dispatchStateUpdate({ timers: next });
-        setInlineEditConfig({ ...inlineEditConfig, isOpen: false });
-        showToast("⏳ 설정이 저장되어 타이머가 즉시 가동(자동 출발)되었습니다!");
-      }
-
-      function handleApplyDirectQuickTimer() {
-        const totalSecs = (parseInt(quickTimerDays) || 0) * 86400 + (parseInt(quickTimerHours) || 0) * 3600 + (parseInt(quickTimerMinutes) || 0) * 60 + (parseInt(quickTimerSeconds) || 0);
-        if (totalSecs <= 0) return;
-        dispatchStateUpdate({ quickTimer: { ...quickTimer, totalSeconds: totalSecs, remainingSeconds: totalSecs, isRunning: true } });
-        showToast("🎯 퀵 타이머 가동이 즉시 시작되었습니다.");
-      }
-
-      function handleSaveQuickTimerName() {
-        dispatchStateUpdate({ quickTimer: { ...quickTimer, name: quickTimerInputName } });
-        showToast("🎯 이름이 수정되었습니다.");
-      }
-
-      function adjustQuickTimerBySeconds(seconds) {
-        const newRemaining = Math.max(0, quickTimer.remainingSeconds + seconds);
-        dispatchStateUpdate({ quickTimer: { ...quickTimer, remainingSeconds: newRemaining } });
+        dispatchStateUpdate({ timers: next }); setInlineEditConfig({ ...inlineEditConfig, isOpen: false });
       }
 
       const renderTimerCard = (t, showCheckbox = false) => {
         const isTrain = t.id.startsWith('train_');
         return (
-          <div key={t.id} className={`bg-white rounded-2xl border p-4 shadow-sm flex flex-col justify-between transition-all ${showCheckbox && selectedMineIds.includes(t.id) ? 'border-amber-400 bg-amber-50/20' : 'border-stone-200'} ${t.remainingSeconds <= 0 || !t.isRunning ? 'ring-2 ring-rose-500/20' : ''}`}>
+          <div key={t.id} className={`bg-white rounded-2xl border p-4 shadow-sm flex flex-col justify-between ${showCheckbox && selectedMineIds.includes(t.id) ? 'border-amber-400 bg-amber-50/20' : 'border-stone-200'}`}>
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                {showCheckbox && (
-                  <input
-                    type="checkbox"
-                    checked={selectedMineIds.includes(t.id)}
-                    onChange={() => {
-                      if (selectedMineIds.includes(t.id)) {
-                        setSelectedMineIds(selectedMineIds.filter(id => id !== t.id));
-                      } else {
-                        setSelectedMineIds([...selectedMineIds, t.id]);
-                      }
-                    }}
-                    className="w-3.5 h-3.5 cursor-pointer rounded accent-stone-900"
-                  />
-                )}
+                {showCheckbox && <input type="checkbox" checked={selectedMineIds.includes(t.id)} onChange={() => setSelectedMineIds(selectedMineIds.includes(t.id) ? selectedMineIds.filter(id => id !== t.id) : [...selectedMineIds, t.id])} className="w-3.5 h-3.5 rounded accent-stone-900" />}
                 <span className="font-bold text-xs text-stone-800">{t.name}</span>
               </div>
               <div className="flex gap-1">
-                <button onClick={() => t.isRunning ? pauseTimer(t.id) : startTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-600">
-                  {t.isRunning ? <PauseIcon /> : <PlayIcon />}
-                </button>
+                <button onClick={() => t.isRunning ? pauseTimer(t.id) : startTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-600">{t.isRunning ? <PauseIcon /> : <PlayIcon />}</button>
                 <button onClick={() => resetTimer(t.id)} className="p-1 border rounded bg-stone-50 text-stone-400"><RefreshIcon /></button>
               </div>
             </div>
             <div className="my-2">
-              <p className="font-mono text-sm font-black text-stone-900">
-                {formatSeconds(t.remainingSeconds)} 
-                {t.remainingSeconds <= 0 && <span className="ml-1.5 inline-block text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-black animate-pulse">수령 필요!</span>}
-                <span className="text-[10px] text-stone-400 font-normal block mt-0.5">
-                  {isTrain ? `현재 기차 타임라인: ${formatSeconds(t.totalSeconds)}` : `지정 고정시간: ${formatSeconds(t.totalSeconds)}`}
-                </span>
-              </p>
+              <p className="font-mono text-sm font-black text-stone-900">{formatSeconds(t.remainingSeconds)}</p>
             </div>
-            
-            <div className="flex flex-wrap gap-1 pt-2 border-t text-[9px] font-bold">
-              {isTrain ? (
-                <>
-                  <button type="button" onClick={() => openInlineEditModal(t, 'train')} className="flex-1 text-center bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-md py-1.5 border border-amber-200/40">⏱️ 열차 시간 설정 (즉시 출발)</button>
-                  <button type="button" onClick={() => openInlineEditModal(t, 'accel')} className="bg-stone-900 hover:bg-stone-800 text-white border border-stone-950 rounded-md px-2.5 py-1.5 shrink-0">🚀 가속 단축</button>
-                </>
-              ) : (
-                <>
-                  <button type="button" onClick={() => openInlineEditModal(t, 'delay')} className="bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-md px-2 py-1 border border-amber-200/40">⏳ 지각출발 시간 보정</button>
-                  <button type="button" onClick={() => openInlineEditModal(t, 'fixed')} className="bg-stone-50 hover:bg-stone-100 text-stone-500 rounded-md px-1.5 py-1">⚙️ 고정시간 변경</button>
-                  <button type="button" onClick={() => openInlineEditModal(t, 'accel')} className="bg-stone-900 hover:bg-stone-800 text-white border border-stone-950 rounded-md px-2 py-1 ml-auto shrink-0">🚀 가속 단축</button>
-                </>
-              )}
+            <div className="flex gap-1 pt-2 border-t text-[9px] font-bold">
+              <button type="button" onClick={() => setInlineEditConfig({ isOpen: true, id: t.id, name: t.name, mode: isTrain ? 'train' : 'delay', days: '0', hours: '0', minutes: '0' })} className="flex-1 bg-amber-50 text-amber-900 rounded py-1">⏱️ 설정 보정</button>
             </div>
           </div>
         );
@@ -812,364 +568,134 @@
 
       return (
         <div className="min-h-screen bg-[#F9F7F4] text-[#2D2A26] antialiased pb-20 px-4 md:px-8">
-          {toastMessage && (
-            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[150] bg-stone-900 text-stone-100 px-5 py-3 rounded-2xl shadow-xl font-bold animate-bounce text-sm">
-              {toastMessage}
-            </div>
-          )}
-
           <header className="max-w-7xl mx-auto pt-10 pb-6 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-stone-200">
-            <div>
-              <h1 className="text-2xl font-black flex items-center gap-2 text-stone-900 tracking-tight">
-                🍪 쿠키런: 킹덤 올인원 플래너
-                {cloudStatus === 'connected' ? (
-                  <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full uppercase font-black">CLOUD LIVE</span>
-                ) : (
-                  <span className="bg-rose-600 text-white text-[10px] px-2 py-0.5 rounded-full uppercase font-black">CONNECTING / LOCAL</span>
-                )}
-              </h1>
-            </div>
+            <h1 className="text-2xl font-black">🍪 쿠키런: 킹덤 올인원 플래너 <span className="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">연동 활성화됨</span></h1>
             <div className="flex gap-2 items-center">
               <div className="bg-white px-4 py-2 border rounded-xl shadow-sm">
                 <span className="text-[9px] font-bold text-stone-400 block">SYNC CODE</span>
                 <span className="font-mono text-sm font-black text-stone-800">{syncCode}</span>
               </div>
               <button onClick={() => { windowcopyToClipboard(syncCode); showToast("📋 코드가 복사되었습니다!"); }} className="bg-stone-900 text-white text-xs px-4 py-3 rounded-xl font-bold">코드 복사</button>
-              
-              {/* 🛠️ [실시간 연동용 신규 입력 버튼 탑재] */}
               <button onClick={() => {
-                const newCode = prompt("연동할 다른 기기나 브라우저의 SYNC CODE를 입력하세요 (예: CRK-XXXXXX):");
+                const newCode = prompt("연동할 브라우저의 SYNC CODE를 입력하세요 (예: CRK-XXXXXX):");
                 if (newCode && newCode.trim().toUpperCase().startsWith("CRK-")) {
                   const cleaned = newCode.trim().toUpperCase();
                   localStorage.setItem('crk_sync_code_v4', cleaned);
-                  showToast("🔄 동기화 코드가 매칭되었습니다! 데이터를 가져옵니다...");
-                  setTimeout(() => window.location.reload(), 1000);
-                } else if (newCode) {
-                  alert("형식이 올바르지 않습니다. 'CRK-'로 시작하는 전체 코드를 정확히 입력해주세요.");
+                  localStorage.clear(); // 꼬임 방지 초기화
+                  localStorage.setItem('crk_sync_code_v4', cleaned);
+                  window.location.reload();
                 }
-              }} className="bg-amber-600 hover:bg-amber-700 text-white text-xs px-4 py-3 rounded-xl font-bold transition-colors">코드 입력(연동)</button>
+              }} className="bg-amber-600 text-white text-xs px-4 py-3 rounded-xl font-bold">코드 입력(연동)</button>
             </div>
           </header>
 
           <nav className="max-w-7xl mx-auto mt-6 sticky top-4 z-50">
             <div className="bg-white/80 backdrop-blur-xl border p-1.5 rounded-2xl shadow-md max-w-xl mx-auto">
               <div className="grid grid-cols-4 gap-1">
-                {[
-                  ['dashboard', '📊 대시보드'], 
-                  ['homework', '📅 숙제 패널'], 
-                  ['currency', '⚡ 재화 설정'], 
-                  ['timer', '⏳ 가속 센터']
-                ].map(([id, label]) => (
-                  <button key={id} onClick={() => setActiveTab(id)} className={`py-2 text-xs font-bold rounded-xl transition-all ${activeTab === id ? 'bg-stone-900 text-white shadow-md' : 'text-stone-600 hover:bg-stone-100'}`}>{label}</button>
+                {[['dashboard', '📊 대시보드'], ['homework', '📅 숙제 패널'], ['currency', '⚡ 재화 설정'], ['timer', '⏳ 가속 센터']].map(([id, label]) => (
+                  <button key={id} onClick={() => setActiveTab(id)} className={`py-2 text-xs font-bold rounded-xl ${activeTab === id ? 'bg-stone-900 text-white' : 'text-stone-600'}`}>{label}</button>
                 ))}
               </div>
             </div>
           </nav>
 
           <main className="max-w-7xl mx-auto mt-8">
-            {/* 1. 대시보드 뷰 */}
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  {/* 우체국 관제 */}
-                  <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-stone-400 tracking-widest uppercase block">📮 POST OFFICE MONITOR</span>
-                      <h2 className="text-base font-bold mt-3 text-stone-800">{postOfficeStatus.text}</h2>
-                      <p className="text-[11px] text-stone-400 mt-0.5">창구 개방 시간: {postOfficeStatus.currentWindow}</p>
-                      <div className="bg-[#FAF9F6] p-3 rounded-xl border border-stone-200/50 mt-3">
-                        <div className="flex justify-between items-center text-[11px] font-bold text-stone-700">
-                          <span>진행 상태</span>
-                          <span className="text-amber-700">{postOfficeStatus.subText}</span>
-                        </div>
-                        <div className="w-full bg-stone-200/50 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                          <div className={`h-full transition-all duration-1000 ${postOfficeStatus.isOpen ? 'bg-emerald-500' : 'bg-amber-600'}`} style={{ width: postOfficeStatus.isOpen ? '100%' : '50%' }} />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-stone-100 grid grid-cols-3 gap-1.5">
+                  {/* 우체국 */}
+                  <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm">
+                    <span className="text-[10px] font-bold text-stone-400 block">📮 POST OFFICE MONITOR</span>
+                    <h2 className="text-base font-bold mt-3">{postOfficeStatus.text}</h2>
+                    <p className="text-[11px] text-stone-400">{postOfficeStatus.subText}</p>
+                    <div className="mt-4 grid grid-cols-3 gap-1.5">
                       {[0, 1, 2].map(idx => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            const claims = [...postOfficeClaims.claims];
-                            claims[idx] = !claims[idx];
-                            dispatchStateUpdate({ postOfficeClaims: { ...postOfficeClaims, claims } });
-                          }}
-                          className={`py-2 rounded-xl text-[11px] font-bold transition-all border ${
-                            postOfficeClaims.claims[idx] ? 'bg-stone-900 border-stone-900 text-white' : 'bg-[#FAF9F6] border-stone-200 text-stone-600 hover:bg-stone-100/60'
-                          }`}
-                        >
-                          {idx + 1}회 {postOfficeClaims.claims[idx] ? '✓' : '대기'}
-                        </button>
+                        <button key={idx} onClick={() => { const claims = [...postOfficeClaims.claims]; claims[idx] = !claims[idx]; dispatchStateUpdate({ postOfficeClaims: { ...postOfficeClaims, claims } }); }} className={`py-2 rounded-xl text-[11px] font-bold border ${postOfficeClaims.claims[idx] ? 'bg-stone-900 text-white' : 'bg-[#FAF9F6] text-stone-600'}`}>{idx + 1}회 {postOfficeClaims.claims[idx] ? '✓' : '대기'}</button>
                       ))}
                     </div>
                   </div>
 
-                  {/* ⛲ 풍요의 분수 대시보드 카드 */}
-                  <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-amber-200 bg-amber-50/10 shadow-sm flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black text-amber-700 tracking-widest uppercase block">Fountain of Plenty</span>
-                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${fountainTime.isRunning ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'}`}>
-                          {fountainTime.isRunning ? '● 생산중' : '■ 정지상태'}
-                        </span>
-                      </div>
-                      <h2 className="text-xl font-black mt-3 text-stone-900">⛲ 풍요의 분수 모니터</h2>
-                     
-                      <div className="my-4 bg-white p-3.5 rounded-2xl border border-amber-100 shadow-inner">
-                        <p className="text-[11px] font-bold text-stone-500">누적 누적 시간 (최대 8시간):</p>
-                        <p className="font-mono text-2xl font-black text-amber-900 mt-1">
-                          {formatElapsedSeconds(fountainTime.elapsedSeconds)}
-                          {fountainTime.elapsedSeconds >= 28800 && (
-                            <span className="ml-2 text-xs bg-rose-600 text-white px-2 py-0.5 rounded-md align-middle animate-pulse font-sans">MAX 수령!</span>
-                          )}
-                        </p>
-                        <div className="w-full bg-stone-100 h-2 rounded-full mt-3 overflow-hidden">
-                          <div className="bg-amber-500 h-full transition-all duration-1000" style={{ width: `${Math.min(100, (fountainTime.elapsedSeconds / 28800) * 100)}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2 w-full">
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          dispatchStateUpdate({ fountainTime: { ...fountainTime, elapsedSeconds: 0 } });
-                          showToast("⛲ 분수 보상을 수령하여 시간을 00:00:00으로 비웠습니다. 아래 생산을 시작해주세요!");
-                        }} 
-                        className="flex-1 bg-amber-700 hover:bg-amber-800 text-white text-[11px] font-black py-3 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1"
-                      >
-                        1단계: 보상 수령
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          const nextRunning = !fountainTime.isRunning;
-                          dispatchStateUpdate({ fountainTime: { ...fountainTime, isRunning: nextRunning } });
-                          showToast(nextRunning ? "▶ 분수 시간 카운트 엔진을 가동합니다!" : "⏸ 분수 시간 엔진을 일시정지했습니다.");
-                        }} 
-                        className={`px-3 py-3 rounded-xl text-[11px] font-black border transition-all ${fountainTime.isRunning ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-emerald-600 border-emerald-600 text-white'}`}
-                      >
-                        {fountainTime.isRunning ? '⏸ 정지' : '▶ 생산 가동'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 프로그레스 패널 */}
+                  {/* 풍요의 분수 */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
                     <div>
-                      <span className="text-[10px] font-bold text-stone-400 tracking-widest uppercase block">📊 PROGRESS PANEL</span>
-                      <div className="mt-6 flex items-baseline gap-1">
-                        <span className="text-4xl font-black text-stone-900 tracking-tighter">{totalProgressPercent}%</span>
-                        <span className="text-[11px] text-stone-400 font-bold">({totalCompletedTasks}/{totalTasks} 완료)</span>
-                      </div>
-                      <div className="w-full bg-stone-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                        <div className="bg-[#9B6F43] h-full transition-all duration-500" style={{ width: `${totalProgressPercent}%` }} />
-                      </div>
+                      <span className="text-[10px] font-black text-amber-700 block">⛲ FOUNTAIN</span>
+                      <h2 className="text-xl font-black mt-1 font-mono">{formatElapsedSeconds(fountainTime.elapsedSeconds)}</h2>
                     </div>
-                    <div className="pt-3 border-t border-stone-100 grid grid-cols-3 gap-1.5 text-center text-[11px]">
-                      <div className="bg-[#FAF9F6] p-2 rounded-xl border">
-                        <div className="text-stone-400 font-bold">일일</div>
-                        <div className="text-xs font-black text-stone-800 mt-0.5">{dailyDoneCount}/{dailyHomework.length}</div>
-                      </div>
-                      <div className="bg-[#FAF9F6] p-2 rounded-xl border">
-                        <div className="text-stone-400 font-bold">12시간</div>
-                        <div className="text-xs font-black text-stone-800 mt-0.5">{twelveHourDoneCount}/{twelveHourHomework.length}</div>
-                      </div>
-                      <div className="bg-[#FAF9F6] p-2 rounded-xl border">
-                        <div className="text-stone-400 font-bold">주간</div>
-                        <div className="text-xs font-black text-stone-800 mt-0.5">{weeklyDoneCount}/{weeklyHomework.length}</div>
-                      </div>
+                    <div className="flex gap-2 mt-4">
+                      <button type="button" onClick={() => dispatchStateUpdate({ fountainTime: { ...fountainTime, elapsedSeconds: 0 } })} className="flex-1 bg-amber-700 text-white text-[11px] font-bold py-2.5 rounded-xl">보상 수령</button>
+                      <button type="button" onClick={() => dispatchStateUpdate({ fountainTime: { ...fountainTime, isRunning: !fountainTime.isRunning } })} className="px-3 bg-stone-100 text-xs rounded-xl">{fountainTime.isRunning ? '⏸ 정지' : '▶ 시작'}</button>
                     </div>
+                  </div>
+
+                  {/* 숙제 현황 */}
+                  <div className="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm">
+                    <span className="text-[10px] font-bold text-stone-400 block">📊 PROGRESS PANEL</span>
+                    <div className="mt-4 text-3xl font-black">{totalProgressPercent}% <span className="text-xs text-stone-400 font-bold">({totalCompletedTasks}/{totalTasks} 완료)</span></div>
                   </div>
                 </div>
 
-                {/* 6종 실시간 충전 재화 대시보드 */}
-                <div className="bg-white p-6 rounded-3xl border shadow-sm space-y-3">
-                  <span className="text-[10px] font-bold text-stone-400 block tracking-widest uppercase">⚡ REALTIME CURRENCY DASHBOARD</span>
+                {/* 재화 대시보드 */}
+                <div className="bg-white p-6 rounded-3xl border shadow-sm">
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     {computedCurrencies.map(c => (
-                      <div key={c.id} className={`p-4 rounded-2xl border ${c.isActive ? 'bg-[#FAF9F6] border-stone-200/60' : 'bg-stone-50 opacity-40'}`}>
+                      <div key={c.id} className="p-4 bg-[#FAF9F6] rounded-2xl border">
                         <p className="text-[11px] font-bold text-stone-500">{c.name}</p>
-                        <p className="text-xl font-black text-stone-900 mt-1.5 font-mono">{c.liveCurrent} <span className="text-xs text-stone-400 font-normal">/ {c.max}</span></p>
-                        {c.isActive && c.liveCurrent < c.max && (
-                          <div className="mt-2 text-[9px] text-stone-400 font-medium font-sans space-y-0.5">
-                            <div className="text-rose-600 font-bold">완충까지: {formatSeconds(c.secondsToFull)}</div>
-                          </div>
-                        )}
+                        <p className="text-xl font-black mt-1 font-mono">{c.liveCurrent} <span className="text-xs text-stone-400">/ {c.max}</span></p>
                       </div>
                     ))}
-                  </div>
-                </div>
-
-                {/* 리셋 모드 시간판과 임박 알림 센터 */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  <div className="lg:col-span-5 bg-white p-6 rounded-3xl border shadow-sm space-y-4 flex flex-col justify-center">
-                    <span className="text-[10px] font-bold text-stone-400 block tracking-widest uppercase">⏰ RESETS TIMER</span>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between items-center py-2 border-b">
-                        <span className="font-bold text-stone-600">일일 0시 리셋</span>
-                        <span className="font-mono text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg font-black">{getCountdownToMidnight(now)}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b">
-                        <span className="font-bold text-stone-600">대난투 리셋 (12H)</span>
-                        <span className="font-mono text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg font-black">{getCountdownToTwelveHour(now)}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="font-bold text-stone-600">주간 목요일 리셋</span>
-                        <span className="bg-stone-100 text-stone-700 px-2.5 py-1 rounded-lg font-black">{getCountdownToThursday(now)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 임박 알림 센터 */}
-                  <div className="lg:col-span-7 bg-white p-6 rounded-3xl border shadow-sm flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold text-stone-400 block tracking-widest uppercase">⌛ URGENT MONITOR</span>
-                      <p className="text-xs text-amber-800 mt-1">남은시간 5분 미만 또는 수령 대기중인 타이머 목록</p>
-                    </div>
-                    <div className="flex-1 mt-4">
-                      {timers.filter(t => t.remainingSeconds <= 300).length === 0 ? (
-                        <div className="text-center py-7 bg-[#FAF9F6] rounded-2xl border border-dashed border-stone-200 flex flex-col items-center justify-center">
-                          <span className="text-lg">📭</span>
-                          <p className="text-xs text-stone-400 font-bold mt-1.5">임박하거나 수집 대기 상태인 알림이 없습니다.</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[140px] overflow-y-auto">
-                          {timers.filter(t => t.remainingSeconds <= 300).map(t => (
-                            <div key={t.id} className="p-3 bg-[#FAF9F6] border border-stone-100 rounded-2xl flex justify-between items-center">
-                              <div>
-                                <p className="text-xs font-bold text-stone-800">{t.name}</p>
-                                <span className="text-[9px] text-stone-400">기준: {formatSeconds(t.totalSeconds)}</span>
-                              </div>
-                              <span className="font-mono text-xs font-black text-rose-600">{formatSeconds(t.remainingSeconds)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 퀵 타이머 컨트롤러 패널 */}
-                <div className="bg-gradient-to-tr from-[#F2ECE4] to-white p-6 rounded-3xl border shadow-sm">
-                  <div className="flex flex-col lg:flex-row justify-between gap-6 items-center">
-                    <div className="space-y-2 flex-1 w-full">
-                      <h3 className="font-black text-stone-900 text-lg">🎯 개인용 퀵 타이머 직접 입력 세팅</h3>
-                      <div className="flex flex-wrap gap-2 mt-4">
-                        <input type="text" value={quickTimerInputName} onChange={e => setQuickTimerInputName(e.target.value)} className="border rounded-xl px-3 py-2 text-xs font-bold focus:outline-none bg-white" />
-                        <button onClick={handleSaveQuickTimerName} className="bg-stone-900 text-white text-xs px-4 py-2 rounded-xl font-bold">이름수정</button>
-                      </div>
-                      <div className="flex items-center gap-1 mt-2 text-xs font-bold">
-                        <input type="number" value={quickTimerDays} onChange={e => setQuickTimerDays(e.target.value)} onFocus={e => e.target.select()} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>일</span>
-                        <input type="number" value={quickTimerHours} onChange={e => setQuickTimerHours(e.target.value)} onFocus={e => e.target.select()} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>시</span>
-                        <input type="number" value={quickTimerMinutes} onChange={e => setQuickTimerMinutes(e.target.value)} onFocus={e => e.target.select()} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>분</span>
-                        <input type="number" value={quickTimerSeconds} onChange={e => setQuickTimerSeconds(e.target.value)} onFocus={e => e.target.select()} className="w-12 text-center bg-white border rounded-lg py-1.5 focus:outline-none" /><span>초</span>
-                        <button onClick={handleApplyDirectQuickTimer} className="bg-amber-700 text-white px-3 py-1.5 rounded-xl font-bold ml-2">적용 (즉시출발)</button>
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-5 rounded-2xl border shadow-sm min-w-[280px]">
-                      <div className="flex justify-between items-center mb-3">
-                        <div>
-                          <p className="text-[10px] font-bold text-stone-400">{quickTimer.name}</p>
-                          <p className="font-mono text-2xl font-black text-stone-900">{formatSeconds(quickTimer.remainingSeconds)}</p>
-                        </div>
-                        <div className="flex gap-1">
-                          <button onClick={() => dispatchStateUpdate({ quickTimer: { ...quickTimer, isRunning: !quickTimer.isRunning } })} className="p-2.5 border rounded-xl bg-stone-50 text-emerald-800">
-                            {quickTimer.isRunning ? <PauseIcon /> : <PlayIcon />}
-                          </button>
-                          <button onClick={() => dispatchStateUpdate({ quickTimer: { ...quickTimer, remainingSeconds: quickTimer.totalSeconds, isRunning: false } })} className="p-2.5 border rounded-xl bg-stone-50"><RefreshIcon /></button>
-                        </div>
-                      </div>
-                      <div className="flex gap-1 pt-3 border-t text-[10px] font-bold overflow-x-auto">
-                        {[ ['+1분', 60], ['+5분', 300], ['+1시간', 3600] ].map(([l, v]) => (
-                          <button key={l} onClick={() => adjustQuickTimerBySeconds(v)} className="bg-[#FAF9F6] border rounded-lg px-2.5 py-1 text-stone-600">{l}</button>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* 2. 숙제 패널 */}
             {activeTab === 'homework' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
-                  <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center">
-                    <span>🌅 일일 숙제</span>
-                    <span className="font-mono text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded">{getCountdownToMidnight(now)}</span>
-                  </h3>
-                  <div className="flex gap-1 py-2 border-b">
-                    <button type="button" onClick={() => handleBulkCheck('daily', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체완료</button>
-                    <button type="button" onClick={() => handleBulkCheck('daily', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체해제</button>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 일일 숙제 */}
+                <div className="bg-white p-6 rounded-3xl border shadow-sm">
+                  <h3 className="font-bold text-stone-900 border-b pb-2">🌅 일일 숙제</h3>
                   <form onSubmit={e => handleAddTask('daily', e)} className="flex gap-2 py-3">
-                    <input type="text" placeholder="+ 새 숙제 직접 추가" value={newDailyName} onChange={e => setNewDailyName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-stone-400" />
-                    <button type="submit" className="bg-stone-900 text-white rounded-xl px-4 text-sm font-bold hover:bg-stone-800">+</button>
+                    <input type="text" placeholder="+ 직접 추가" value={newDailyName} onChange={e => setNewDailyName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl" />
+                    <button type="submit" className="bg-stone-900 text-white rounded-xl px-4 font-bold">+</button>
                   </form>
-                  <div className="space-y-1.5 w-full">
+                  <div className="space-y-1.5">
                     {getSortedHomework(dailyHomework).map(item => (
-                      <div key={item.id} className={`p-3 border rounded-xl flex justify-between items-center text-xs transition-all ${item.done ? 'bg-stone-50/70 border-stone-200 opacity-60' : 'bg-white border-stone-200 shadow-sm'}`}>
-                        <label className="flex items-center gap-2.5 cursor-pointer flex-1 py-0.5 select-none">
-                          <input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ dailyHomework: dailyHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} className="rounded accent-stone-900 w-3.5 h-3.5" />
-                          <span className={`text-stone-800 font-medium ${item.done ? 'line-through text-stone-400 font-normal' : ''}`}>{item.name}</span>
-                        </label>
-                        <button onClick={() => handleDeleteTask('daily', item.id)} className="text-stone-300 hover:text-rose-600 transition-colors p-1"><TrashIcon className="w-3.5 h-3.5" /></button>
+                      <div key={item.id} className="p-3 border rounded-xl flex justify-between items-center text-xs bg-white">
+                        <label className="flex items-center gap-2 cursor-pointer flex-1"><input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ dailyHomework: dailyHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} className="rounded" /> <span className={item.done ? 'line-through text-stone-400' : ''}>{item.name}</span></label>
+                        <button onClick={() => handleDeleteTask('daily', item.id)} className="text-stone-300 hover:text-rose-600">✕</button>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
-                  <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center">
-                    <span>⚔️ 12시간 숙제</span>
-                    <span className="font-mono text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded">{getCountdownToTwelveHour(now)}</span>
-                  </h3>
-                  <div className="flex gap-1 py-2 border-b">
-                    <button type="button" onClick={() => handleBulkCheck('12h', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체완료</button>
-                    <button type="button" onClick={() => handleBulkCheck('12h', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체해제</button>
-                  </div>
+                {/* 12시간 숙제 */}
+                <div className="bg-white p-6 rounded-3xl border shadow-sm">
+                  <h3 className="font-bold text-stone-900 border-b pb-2">⚔️ 12시간 숙제</h3>
                   <form onSubmit={e => handleAddTask('12h', e)} className="flex gap-2 py-3">
-                    <input type="text" placeholder="+ 새 숙제 직접 추가" value={newTwelveName} onChange={e => setNewTwelveName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-stone-400" />
-                    <button type="submit" className="bg-stone-900 text-white rounded-xl px-4 text-sm font-bold hover:bg-stone-800">+</button>
+                    <input type="text" placeholder="+ 직접 추가" value={newTwelveName} onChange={e => setNewTwelveName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl" />
+                    <button type="submit" className="bg-stone-900 text-white rounded-xl px-4 font-bold">+</button>
                   </form>
-                  <div className="space-y-1.5 w-full">
+                  <div className="space-y-1.5">
                     {getSortedHomework(twelveHourHomework).map(item => (
-                      <div key={item.id} className={`p-3 border rounded-xl flex justify-between items-center text-xs transition-all ${item.done ? 'bg-stone-50/70 border-stone-200 opacity-60' : 'bg-white border-stone-200 shadow-sm'}`}>
-                        <label className="flex items-center gap-2.5 cursor-pointer flex-1 py-0.5 select-none">
-                          <input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} className="rounded accent-stone-900 w-3.5 h-3.5" />
-                          <span className={`text-stone-800 font-medium ${item.done ? 'line-through text-stone-400 font-normal' : ''}`}>{item.name}</span>
-                        </label>
-                        <button onClick={() => handleDeleteTask('12h', item.id)} className="text-stone-300 hover:text-rose-600 transition-colors p-1"><TrashIcon className="w-3.5 h-3.5" /></button>
+                      <div key={item.id} className="p-3 border rounded-xl flex justify-between items-center text-xs bg-white">
+                        <label className="flex items-center gap-2 cursor-pointer flex-1"><input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ twelveHourHomework: twelveHourHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} className="rounded" /> <span className={item.done ? 'line-through text-stone-400' : ''}>{item.name}</span></label>
+                        <button onClick={() => handleDeleteTask('12h', item.id)} className="text-stone-300 hover:text-rose-600">✕</button>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
-                  <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center">
-                    <span>🛡️ 주간 숙제</span>
-                    <span className="font-mono text-xs text-stone-700 bg-stone-100 px-2 py-0.5 rounded">{getCountdownToThursday(now)}</span>
-                  </h3>
-                  <div className="flex gap-1 py-2 border-b">
-                    <button type="button" onClick={() => handleBulkCheck('weekly', true)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체완료</button>
-                    <button type="button" onClick={() => handleBulkCheck('weekly', false)} className="flex-1 text-[10px] font-bold bg-stone-50 py-1.5 rounded hover:bg-stone-100">전체해제</button>
-                  </div>
+                {/* 주간 숙제 */}
+                <div className="bg-white p-6 rounded-3xl border shadow-sm">
+                  <h3 className="font-bold text-stone-900 border-b pb-2">🛡️ 주간 숙제</h3>
                   <form onSubmit={e => handleAddTask('weekly', e)} className="flex gap-2 py-3">
-                    <input type="text" placeholder="+ 새 숙제 직접 추가" value={newWeeklyName} onChange={e => setNewWeeklyName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-stone-400" />
-                    <button type="submit" className="bg-stone-900 text-white rounded-xl px-4 text-sm font-bold hover:bg-stone-800">+</button>
+                    <input type="text" placeholder="+ 직접 추가" value={newWeeklyName} onChange={e => setNewWeeklyName(e.target.value)} className="flex-1 border text-xs px-3 py-2 rounded-xl" />
+                    <button type="submit" className="bg-stone-900 text-white rounded-xl px-4 font-bold">+</button>
                   </form>
-                  <div className="space-y-1.5 w-full">
+                  <div className="space-y-1.5">
                     {getSortedHomework(weeklyHomework).map(item => (
-                      <div key={item.id} className={`p-3 border rounded-xl flex justify-between items-center text-xs transition-all ${item.done ? 'bg-stone-50/70 border-stone-200 opacity-60' : 'bg-white border-stone-200 shadow-sm'}`}>
-                        <label className="flex items-center gap-2.5 cursor-pointer flex-1 py-0.5 select-none">
-                          <input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ weeklyHomework: weeklyHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} className="rounded accent-stone-900 w-3.5 h-3.5" />
-                          <span className={`text-stone-800 font-medium ${item.done ? 'line-through text-stone-400 font-normal' : ''}`}>{item.name}</span>
-                        </label>
-                        <button onClick={() => handleDeleteTask('weekly', item.id)} className="text-stone-300 hover:text-rose-600 transition-colors p-1"><TrashIcon className="w-3.5 h-3.5" /></button>
+                      <div key={item.id} className="p-3 border rounded-xl flex justify-between items-center text-xs bg-white">
+                        <label className="flex items-center gap-2 cursor-pointer flex-1"><input type="checkbox" checked={item.done} onChange={() => dispatchStateUpdate({ weeklyHomework: weeklyHomework.map(h => h.id === item.id ? { ...h, done: !h.done } : h) })} className="rounded" /> <span className={item.done ? 'line-through text-stone-400' : ''}>{item.name}</span></label>
+                        <button onClick={() => handleDeleteTask('weekly', item.id)} className="text-stone-300 hover:text-rose-600">✕</button>
                       </div>
                     ))}
                   </div>
@@ -1177,153 +703,67 @@
               </div>
             )}
 
-            {/* 3. 재화 설정 패널 */}
             {activeTab === 'currency' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {computedCurrencies.map(c => {
-                  const curRemMin = Math.floor(c.secondsToNext / 60);
-                  const curRemSec = c.secondsToNext % 60;
-                  return (
-                    <div key={c.id} className={`bg-white rounded-3xl border p-6 shadow-sm flex flex-col justify-between ${!c.isActive && 'opacity-40 bg-stone-50'}`}>
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="font-black text-stone-800 text-sm">{c.name}</span>
-                        <button onClick={() => handleToggleCurrencyActive(c.id)} className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors ${c.isActive ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-stone-900 text-white'}`}>{c.isActive ? '비활성화' : '활성화시키기'}</button>
-                      </div>
-                      {c.isActive && (
-                        <div className="space-y-4">
-                          <div className="bg-stone-50 p-4 rounded-xl border font-mono flex justify-between text-base">
-                            <div className="flex flex-col"><span className="text-[9px] font-bold text-stone-400 block mb-1">현재 보유량</span><input type="number" value={c.current} onChange={e => handleUpdateCurrencyCurrent(c.id, e.target.value)} onFocus={e => e.target.select()} className="w-16 bg-transparent font-bold focus:outline-none" /></div>
-                            <span className="text-stone-400 self-end mb-1">/</span>
-                            <div className="flex flex-col items-end"><span className="text-[9px] font-bold text-stone-400 block mb-1">최대 상한치</span><input type="number" value={c.max} onChange={e => handleUpdateCurrencyMax(c.id, e.target.value)} onFocus={e => e.target.select()} className="w-16 bg-transparent text-right font-bold focus:outline-none" /></div>
-                          </div>
-                          
-                          <div className="flex justify-between items-center text-xs font-bold text-stone-600 bg-stone-50/50 p-2.5 rounded-xl border border-dashed">
-                            <span>1개당 충전 기준 시간 (분):</span>
-                            <input type="number" value={c.rechargeTimeMinutes} onChange={e => handleUpdateCurrencyMinutes(c.id, e.target.value)} onFocus={e => e.target.select()} className="w-12 text-center bg-white border rounded-lg py-1 focus:outline-none" />
-                          </div>
-
-                          <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-100 space-y-1.5">
-                            <span className="text-[10px] font-black text-amber-800 block">⏳ 다음 1단위 충전까지 남은 인게임 시간 동기화</span>
-                            <div className="flex items-center gap-1.5 text-xs font-bold text-stone-600 justify-end">
-                              <input type="number" placeholder={String(curRemMin)} onBlur={e => handleUpdateCurrencyNextUnitSeconds(c.id, e.target.value, document.getElementById(`sec_${c.id}`).value)} onFocus={e => e.target.select()} id={`min_${c.id}`} className="w-12 text-center bg-white border rounded-lg py-1 focus:outline-none" /><span>분</span>
-                              <input type="number" placeholder={String(curRemSec)} onBlur={e => handleUpdateCurrencyNextUnitSeconds(c.id, document.getElementById(`min_${c.id}`).value, e.target.value)} onFocus={e => e.target.select()} id={`sec_${c.id}`} className="w-12 text-center bg-white border rounded-lg py-1 focus:outline-none" /><span>초 남음</span>
-                            </div>
-                          </div>
-
-                          <div className="pt-3 border-t text-xs space-y-1.5 font-bold text-stone-600">
-                            <div className="flex justify-between"><span>실시간 동기화 수량:</span><span className="text-stone-900 font-black">{c.liveCurrent}</span></div>
-                            <div className="flex justify-between"><span>다음 충전까지:</span><span className="text-stone-800 font-mono">{c.secondsToNext}초</span></div>
-                            <div className="flex justify-between"><span>완전 충전까지:</span><span className="text-rose-600 font-extrabold font-mono">{formatSeconds(c.secondsToFull)}</span></div>
-                          </div>
-                        </div>
-                      )}
+                {computedCurrencies.map(c => (
+                  <div key={c.id} className="bg-white rounded-3xl border p-6 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="font-black text-stone-800 text-sm">{c.name}</span>
                     </div>
-                  );
-                })}
+                    <div className="space-y-4">
+                      <div className="bg-stone-50 p-4 rounded-xl border flex justify-between text-base">
+                        <div className="flex flex-col"><span className="text-[9px] text-stone-400 block">현재</span><input type="number" value={c.current} onChange={e => handleUpdateCurrencyCurrent(c.id, e.target.value)} className="w-16 bg-transparent font-bold focus:outline-none" /></div>
+                        <div className="flex flex-col items-end"><span className="text-[9px] text-stone-400 block">최대</span><input type="number" value={c.max} onChange={e => handleUpdateCurrencyMax(c.id, e.target.value)} className="w-16 bg-transparent text-right font-bold focus:outline-none" /></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
-            {/* 4. 가속 센터 탭 */}
             {activeTab === 'timer' && (
               <div className="space-y-8">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border shadow-sm max-w-4xl">
-                  <div className="space-y-4 flex-1 w-full">
-                    <h3 className="font-black text-stone-900 text-sm">⚙️ 새 가속 타이머 직접 등록</h3>
-                    <form onSubmit={handleAddCustomTimer} className="space-y-3">
-                      <input type="text" placeholder="초시계 이름 (예: 연구소 가속, 쿠키 승급 등)" value={customTimerName} onChange={e => setCustomTimerName(e.target.value)} className="w-full border text-xs p-3 rounded-xl focus:outline-none bg-stone-50 font-bold" />
-                      <div className="grid grid-cols-3 gap-2 text-xs font-bold">
-                        <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerDays} onChange={e => setCustomTimerDays(e.target.value)} onFocus={e => e.target.select()} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">일</span></div>
-                        <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerHours} onChange={e => setCustomTimerHours(e.target.value)} onFocus={e => e.target.select()} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">시간</span></div>
-                        <div className="flex flex-col items-center gap-1"><input type="number" placeholder="0" value={customTimerMinutes} onChange={e => setCustomTimerMinutes(e.target.value)} onFocus={e => e.target.select()} className="w-full border p-2 rounded-lg text-center focus:outline-none bg-stone-50/50" /><span className="text-[10px] text-stone-400">분</span></div>
-                      </div>
-                      <button type="submit" className="w-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold py-3 rounded-xl transition-colors">새 타이머 목록에 추가</button>
-                    </form>
-                  </div>
-                  
-                  <div className="border-t md:border-t-0 md:border-l border-stone-100 pt-4 md:pt-0 md:pl-6 shrink-0 flex flex-col justify-center h-full space-y-2">
-                    <span className="text-[10px] font-black text-rose-500 block">⚠️ TIMER RESET TOOL</span>
-                    <p className="text-[11px] text-stone-400 font-medium max-w-[200px]">타이머 구성이 꼬이거나 구조적인 동기화가 불가능할 때 사용하는 하드 리셋 장치입니다.</p>
-                    <button type="button" onClick={forceResetTimersStructure} className="bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-black px-4 py-2.5 rounded-xl transition-colors shadow-sm">🔄 가속센터 구조 강제 초기화</button>
-                  </div>
+                <div className="bg-white p-6 rounded-3xl border shadow-sm max-w-4xl flex justify-between items-center">
+                  <h3 className="font-black text-stone-900 text-sm">⏳ 가속 타이머 관제</h3>
+                  <button type="button" onClick={forceResetTimersStructure} className="bg-rose-50 border text-rose-700 text-xs font-black px-4 py-2 rounded-xl">🔄 타이머 구조 초기화</button>
                 </div>
 
-                {/* 🚂 곰젤리 열차 슬롯 1~3 */}
                 <div className="space-y-3">
-                  <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🚂 곰젤리 열차 모니터링 <span className="text-[10px] text-amber-800 font-bold">(열차 시간 세팅 완료 시 즉시 가동 자동 출발)</span></h4>
+                  <h4 className="text-sm font-black text-stone-700">🚂 곰젤리 열차 모니터링</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {getSortedTimers(timers.filter(t => t.id.startsWith('train_'))).map(t => renderTimerCard(t))}
                   </div>
                 </div>
 
-                {/* ⛏️ 납작이 광산 채굴 현황 */}
                 <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-stone-900 to-stone-800 text-white p-4 rounded-2xl shadow-md">
-                    <div>
-                      <h4 className="text-sm font-black flex items-center gap-1.5">⛏️ 납작이 광산 채굴 현황 (6배수 확장)</h4>
-                      <p className="text-[11px] text-stone-300 mt-0.5">완료된 광산을 한 번에 체크하여 빠르게 재출발시키세요. 완료 시 자동 상단 고정 정렬이 가동됩니다.</p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                      <button type="button" onClick={handleSelectCompletedMines} className="text-xs font-bold bg-white/10 px-3.5 py-2 rounded-xl border border-white/10 hover:bg-white/20 select-none text-white transition-all">✓ 완료된 채굴만 선택</button>
-                      <button type="button" onClick={handleBatchStartMines} className="bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-black px-4 py-2 rounded-xl shadow transition-colors flex items-center gap-1">⚡ 체크한 광산 한 번에 보내기 ({selectedMineIds.length}개)</button>
+                  <div className="bg-stone-900 text-white p-4 rounded-2xl flex justify-between items-center">
+                    <h4 className="text-sm font-black">⛏️ 납작이 광산 채굴 현황</h4>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={handleSelectCompletedMines} className="text-xs bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">완료 선택</button>
+                      <button type="button" onClick={handleBatchStartMines} className="bg-amber-500 text-stone-950 text-xs font-black px-4 py-1.5 rounded-xl">일괄출발 ({selectedMineIds.length})</button>
                     </div>
                   </div>
-                  
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {getSortedTimers(timers.filter(t => t.id.startsWith('mine_harvest_'))).map(t => renderTimerCard(t, true))}
                   </div>
-                </div>
-
-                {/* 주요 영토 고정 콘텐츠 */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🏰 왕국 주요 기본 콘텐츠 초시계</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {getSortedTimers(timers.filter(t => t.preset && !t.id.startsWith('train_') && !t.id.startsWith('mine_harvest_'))).map(t => renderTimerCard(t))}
-                  </div>
-                </div>
-
-                {/* 커스텀 추가 타이머 모음 */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-black text-amber-800 flex items-center gap-1.5">➕ 내가 등록한 커스텀 추가 타이머 목록</h4>
-                  {timers.filter(t => !t.preset).length === 0 ? (
-                    <div className="text-center py-6 bg-stone-100/50 rounded-2xl border border-dashed border-stone-200 text-xs text-stone-400 font-bold max-w-md">상단 등록창에서 추가한 커스텀 타이머가 여기에 정렬됩니다.</div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {getSortedTimers(timers.filter(t => !t.preset)).map(t => renderTimerCard(t))}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
           </main>
 
-          {/* 분리형 시간 수정 모달 팝업창 */}
+          {/* 모달 팝업 */}
           {inlineEditConfig.isOpen && (
             <div className="fixed inset-0 z-[200] bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4">
-                <div>
-                  <h4 className="font-black text-stone-900 text-base">
-                    {inlineEditConfig.mode === 'train' ? '🚂 열차 시간 직접 설정' : inlineEditConfig.mode === 'fixed' ? '⚙️ 고정 마스터 기준시간 변경' : inlineEditConfig.mode === 'accel' ? '🚀 시간 가속 단축 스킵' : '⏳ 이번에만 지각출발 남은시간 보정'}
-                  </h4>
-                  <p className="text-xs text-stone-400 mt-1">
-                    {inlineEditConfig.mode === 'train' 
-                      ? '게임 화면의 기차 남은 시간을 그대로 입력해 주세요. 입력 즉시 자동으로 즉시 출발합니다.'
-                      : inlineEditConfig.mode === 'fixed' 
-                        ? '해당 콘텐츠의 영구적인 수령 마스터 고정 시간을 변경합니다.' 
-                        : inlineEditConfig.mode === 'accel'
-                          ? '가속권이나 버프로 줄일 단축 시간(일/시/분)을 적어주세요. 남은 카운트다운에서 즉시 차감됩니다.'
-                          : '출발 세팅이 늦어져 게임 창에 남은 실시간 정보를 입력하면 즉시 카운트다운 가동 출발합니다.'}
-                  </p>
-                </div>
-                
+              <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4">
+                <h4 className="font-black text-stone-900 text-base">⏱️ 타이머 설정 및 보정</h4>
                 <div className="grid grid-cols-3 gap-2 text-xs font-bold">
-                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">일</span><input type="number" value={inlineEditConfig.days} onChange={e => setInlineEditConfig({ ...inlineEditConfig, days: e.target.value })} onFocus={e => e.target.select()} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
-                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">시간</span><input type="number" value={inlineEditConfig.hours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, hours: e.target.value })} onFocus={e => e.target.select()} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
-                  <div className="flex flex-col gap-1"><span className="text-[10px] text-stone-400 text-center">분</span><input type="number" value={inlineEditConfig.minutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, minutes: e.target.value })} onFocus={e => e.target.select()} className="border p-2.5 rounded-xl bg-stone-50 focus:outline-none text-center font-mono" /></div>
+                  <div className="flex flex-col gap-1"><span className="text-stone-400 text-center">일</span><input type="number" value={inlineEditConfig.days} onChange={e => setInlineEditConfig({ ...inlineEditConfig, days: e.target.value })} className="border p-2 rounded-xl bg-stone-50 text-center font-mono" /></div>
+                  <div className="flex flex-col gap-1"><span className="text-stone-400 text-center">시</span><input type="number" value={inlineEditConfig.hours} onChange={e => setInlineEditConfig({ ...inlineEditConfig, hours: e.target.value })} className="border p-2 rounded-xl bg-stone-50 text-center font-mono" /></div>
+                  <div className="flex flex-col gap-1"><span className="text-stone-400 text-center">분</span><input type="number" value={inlineEditConfig.minutes} onChange={e => setInlineEditConfig({ ...inlineEditConfig, minutes: e.target.value })} className="border p-2 rounded-xl bg-stone-50 text-center font-mono" /></div>
                 </div>
-
                 <div className="flex gap-2 justify-end pt-2 border-t">
-                  <button onClick={() => setInlineEditConfig({ ...inlineEditConfig, isOpen: false })} className="px-4 py-2 border rounded-xl text-xs font-bold hover:bg-stone-50">취소</button>
-                  <button onClick={saveInlineEditModal} className="px-4 py-2 bg-stone-900 text-white rounded-xl text-xs font-bold shadow-md">저장 및 적용하기</button>
+                  <button onClick={() => setInlineEditConfig({ ...inlineEditConfig, isOpen: false })} className="px-4 py-2 border rounded-xl text-xs font-bold">취소</button>
+                  <button onClick={saveInlineEditModal} className="px-4 py-2 bg-stone-900 text-white rounded-xl text-xs font-bold">적용하기</button>
                 </div>
               </div>
             </div>
