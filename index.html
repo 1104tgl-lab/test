@@ -33,7 +33,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
 
     // Firebase 환경 설정
     const firebaseConfig = {
@@ -210,7 +210,6 @@
       { id: 202, name: '킹덤 아레나 리그 참여', done: false, important: true, memo: '' },
       { id: 203, name: '증명의 전장 완료', done: false, important: false, memo: '' }
     ];
-    // 🛠️ 버그 픽스: 구조 단순화를 위해 타임스탬프 방식에서 차감 초(Seconds) 연동 엔진으로 교체
     const INITIAL_CURRENCIES = [
       { id: 'stamina_normal', name: '일반 스태미너', current: 50, max: 100, rechargeTimeMinutes: 5, isActive: true, remainingSeconds: 300 },
       { id: 'stamina_thick', name: '두툼한 스태미너', current: 20, max: 50, rechargeTimeMinutes: 10, isActive: true, remainingSeconds: 600 },
@@ -292,7 +291,6 @@
       });
       const [postOfficeClaims, setPostOfficeClaims] = useState(() => JSON.parse(localStorage.getItem('crk_local_claims')) || { date: new Date().toDateString(), claims: [false, false, false] });
       
-      // ⛲ 풍요의 분수 대시보드 2단계 가동용 구조 복구 (기본 정지 상태 시작)
       const [fountainTime, setFountainTime] = useState(() => {
         const local = JSON.parse(localStorage.getItem('crk_local_fountain')) || { elapsedSeconds: 0, isRunning: false };
         if (offlineSec > 0 && local.isRunning) {
@@ -324,6 +322,10 @@
       const [customTimerDays, setCustomTimerDays] = useState('0');
       const [customTimerHours, setCustomTimerHours] = useState('0');
       const [customTimerMinutes, setCustomTimerMinutes] = useState('0');
+
+      // 🛠️ 버그 픽스: 엔진 클로저 현상을 방지하기 위해 최신 참조(Ref) 생성 및 등록
+      const stateRef = useRef();
+      stateRef.current = { dailyHomework, twelveHourHomework, weeklyHomework, currencies, timers, postOfficeClaims, fountainTime, quickTimer, syncCode, user, cloudStatus };
 
       // --- ⚙️ 유틸리티 기능 함수 정의 (토스트 & 브라우저/파이썬 알림 연동) ---
       const showToast = (message) => {
@@ -435,7 +437,7 @@
         return () => unsubscribeSnapshot();
       }, [user, cloudStatus, syncCode]);
 
-      // --- ⚙️ 실시간 카운트다운 루프 엔진 ---
+      // --- ⚙️ 실시간 카운트다운 루프 엔진 (안전성 강화 모델 독립형 코어) ---
       useEffect(() => {
         localStorage.setItem('crk_last_active', Date.now().toString());
 
@@ -449,7 +451,7 @@
           if (deltaSeconds <= 0) return;
           localStorage.setItem('crk_last_active', Date.now().toString());
 
-          // 1. 재화(Currency) 실시간 차감 연동 버그 픽스 완료
+          // 1. 재화(Currency) 흐름 동기화
           setCurrencies(prevCurrencies => {
             let changed = false;
             const nextCurrencies = prevCurrencies.map(c => {
@@ -464,12 +466,12 @@
             });
             if (changed) {
               localStorage.setItem('crk_local_currencies', JSON.stringify(nextCurrencies));
-              if (cloudStatus === 'connected') saveToCloud({ currencies: nextCurrencies });
+              saveToCloudEngineLevel({ currencies: nextCurrencies });
             }
             return nextCurrencies;
           });
 
-          // 2. 풍요의 분수 엔진 연동
+          // 2. 풍요의 분수 연동
           setFountainTime(prevFountain => {
             if (prevFountain.isRunning && prevFountain.elapsedSeconds < 28800) {
               const updatedSec = Math.min(28800, prevFountain.elapsedSeconds + deltaSeconds);
@@ -478,13 +480,13 @@
                 triggerNotification("⛲ 풍요의 분수 최대 누적!", "풍요의 분수가 최대치(8시간)까지 생산되었습니다!");
               }
               localStorage.setItem('crk_local_fountain', JSON.stringify(nextFountain));
-              if (cloudStatus === 'connected') saveToCloud({ fountainTime: nextFountain });
+              saveToCloudEngineLevel({ fountainTime: nextFountain });
               return nextFountain;
             }
             return prevFountain;
           });
 
-          // 3. 타이머 엔진 연동
+          // 3. 타이머 연동
           setTimers(prevTimers => {
             let changed = false;
             const nextTimers = prevTimers.map(t => {
@@ -500,12 +502,12 @@
             });
             if (changed) {
               localStorage.setItem('crk_local_timers', JSON.stringify(nextTimers));
-              if (cloudStatus === 'connected') saveToCloud({ timers: nextTimers });
+              saveToCloudEngineLevel({ timers: nextTimers });
             }
             return nextTimers;
           });
 
-          // 4. 퀵 타이머 엔진 연동
+          // 4. 퀵 타이머 연동
           setQuickTimer(prevQuick => {
             if (prevQuick.isRunning && prevQuick.remainingSeconds > 0) {
               const updatedSeconds = Math.max(0, prevQuick.remainingSeconds - deltaSeconds);
@@ -515,7 +517,7 @@
                 nextQuick.isRunning = false;
               }
               localStorage.setItem('crk_local_quick_timer', JSON.stringify(nextQuick));
-              if (cloudStatus === 'connected') saveToCloud({ quickTimer: nextQuick });
+              saveToCloudEngineLevel({ quickTimer: nextQuick });
               return nextQuick;
             }
             return prevQuick;
@@ -523,15 +525,36 @@
         }, 1000);
 
         return () => clearInterval(interval);
-      }, [cloudStatus]);
+      }, []);
 
-      // 충전 재화 뷰 매핑 데이터 계산 변환
       const computedCurrencies = currencies.map(c => {
         const liveCurrent = c.current;
         const secondsToNext = c.current >= c.max ? 0 : c.remainingSeconds;
         const secondsToFull = c.current >= c.max ? 0 : c.remainingSeconds + ((c.max - c.current - 1) * c.rechargeTimeMinutes * 60);
         return { ...c, liveCurrent, secondsToNext, secondsToFull };
       });
+
+      // 🛠️ 엔진 레벨 전용 크래시 방지형 클라우드 업로드 함수
+      async function saveToCloudEngineLevel(newData) {
+        const currentRef = stateRef.current;
+        if (!currentRef.user || currentRef.cloudStatus !== 'connected') return;
+        try {
+          const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kingdoms', currentRef.syncCode);
+          await setDoc(docRef, {
+            dailyHomework: newData.dailyHomework ?? currentRef.dailyHomework,
+            twelveHourHomework: newData.twelveHourHomework ?? currentRef.twelveHourHomework,
+            weeklyHomework: newData.weeklyHomework ?? currentRef.weeklyHomework,
+            currencies: newData.currencies ?? currentRef.currencies,
+            timers: newData.timers ?? currentRef.timers,
+            postOfficeClaims: newData.postOfficeClaims ?? currentRef.postOfficeClaims,
+            fountainTime: newData.fountainTime ?? currentRef.fountainTime,
+            quickTimer: newData.quickTimer ?? currentRef.quickTimer,
+            lastUpdatedTime: Date.now()
+          }, { merge: true });
+        } catch (e) {
+          console.error(e);
+        }
+      }
 
       async function saveToCloud(newData) {
         if (!user || cloudStatus !== 'connected') return;
@@ -597,14 +620,13 @@
         showToast("⛏️ 체크한 광산이 일괄 정식 출발했습니다!");
       }
 
-      // [개편] 완료 상태(0초 이하이거나 멈춘)인 광산들만 정확하게 자동 타겟팅해서 체크해 주는 버튼 스위치
       function handleSelectCompletedMines() {
         const completedMineIds = timers
           .filter(t => t.id.startsWith('mine_harvest_') && (t.remainingSeconds <= 0 || !t.isRunning))
           .map(t => t.id);
         
         if (completedMineIds.length === 0) {
-          showToast("🔔 현재 수령 대기 중인 채굴 광산이 없습니다.");
+          showToast("🔔 현재 수령 완료 대기 중인 채굴 광산이 없습니다.");
           return;
         }
 
@@ -734,30 +756,6 @@
         dispatchStateUpdate({ quickTimer: { ...quickTimer, remainingSeconds: newRemaining } });
       }
 
-      const handleUpdateCurrencyCurrent = (id, val) => {
-        const parsed = parseInt(val) || 0;
-        const target = currencies.find(c => c.id === id);
-        if (!target) return;
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, current: parsed, remainingSeconds: parsed >= c.max ? c.rechargeTimeMinutes * 60 : c.remainingSeconds } : c) });
-      };
-      const handleUpdateCurrencyMax = (id, val) => {
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, max: parseInt(val) || 0 } : c) });
-      };
-      const handleUpdateCurrencyMinutes = (id, val) => {
-        const parsed = parseInt(val) || 1;
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, rechargeTimeMinutes: parsed, remainingSeconds: parsed * 60 } : c) });
-      };
-      const handleToggleCurrencyActive = (id) => {
-        dispatchStateUpdate({ currencies: currencies.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c) });
-      };
-
-      const handleUpdateCurrencyNextUnitSeconds = (id, mins, secs) => {
-        const totalInputSecs = (parseInt(mins) || 0) * 60 + (parseInt(secs) || 0);
-        dispatchStateUpdate({
-          currencies: currencies.map(c => c.id === id ? { ...c, remainingSeconds: totalInputSecs } : c)
-        });
-      };
-
       const renderTimerCard = (t, showCheckbox = false) => {
         const isTrain = t.id.startsWith('train_');
         return (
@@ -815,14 +813,6 @@
         );
       };
 
-      const dailyDoneCount = dailyHomework.filter(i => i.done).length;
-      const twelveHourDoneCount = twelveHourHomework.filter(i => i.done).length;
-      const weeklyDoneCount = weeklyHomework.filter(i => i.done).length;
-      const totalTasks = dailyHomework.length + twelveHourHomework.length + weeklyHomework.length;
-      const totalCompletedTasks = dailyDoneCount + twelveHourDoneCount + weeklyDoneCount;
-      const totalProgressPercent = totalTasks > 0 ? Math.round((totalCompletedTasks / totalTasks) * 100) : 0;
-      
-      const postOfficeStatus = getPostOfficeStatus(now);
       return (
         <div className="min-h-screen bg-[#F9F7F4] text-[#2D2A26] antialiased pb-20 px-4 md:px-8">
           {toastMessage && (
@@ -906,7 +896,7 @@
                     </div>
                   </div>
 
-                  {/* ⛲ 풍요의 분수 대시보드 카드 [복구 및 2단계 분리 적용] */}
+                  {/* ⛲ 풍요의 분수 대시보드 카드 */}
                   <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-amber-200 bg-amber-50/10 shadow-sm flex flex-col justify-between">
                     <div>
                       <div className="flex justify-between items-center">
@@ -931,7 +921,6 @@
                       </div>
                     </div>
                     
-                    {/* 🛠️ 개편: 무조건 초기화가 아닌 2단계 수동 프로세스로 가동 */}
                     <div className="flex gap-2 w-full">
                       <button 
                         type="button" 
@@ -996,8 +985,7 @@
                         <p className="text-xl font-black text-stone-900 mt-1.5 font-mono">{c.liveCurrent} <span className="text-xs text-stone-400 font-normal">/ {c.max}</span></p>
                         {c.isActive && c.liveCurrent < c.max && (
                           <div className="mt-2 text-[9px] text-stone-400 font-medium font-sans space-y-0.5">
-                            <div>다음충전: {c.secondsToNext}초</div>
-                            <div className="text-rose-600 font-bold">완충: {formatSeconds(c.secondsToFull)}</div>
+                            <div className="text-rose-600 font-bold">완충까지: {formatSeconds(c.secondsToFull)}</div>
                           </div>
                         )}
                       </div>
@@ -1096,10 +1084,9 @@
               </div>
             )}
 
-            {/* 2. 숙제 패널 [🛠️ 개편: 가로-세로 가변 스케일링 완전 노출 구조 변경] */}
+            {/* 2. 숙제 패널 */}
             {activeTab === 'homework' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                {/* 일일 숙제 */}
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
                   <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center">
                     <span>🌅 일일 숙제</span>
@@ -1126,7 +1113,6 @@
                   </div>
                 </div>
 
-                {/* 12시간 숙제 */}
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
                   <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center">
                     <span>⚔️ 12시간 숙제</span>
@@ -1153,7 +1139,6 @@
                   </div>
                 </div>
 
-                {/* 주간 숙제 */}
                 <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col h-auto">
                   <h3 className="font-bold text-stone-900 border-b pb-3 flex justify-between items-center">
                     <span>🛡️ 주간 숙제</span>
@@ -1297,7 +1282,7 @@
                   </div>
                 </div>
 
-                {/* 주요 영토 고정 콘텐츠 [풍요의 분수 초시계 전면 영구 삭제] */}
+                {/* 주요 영토 고정 콘텐츠 */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-black text-stone-700 flex items-center gap-1.5">🏰 왕국 주요 기본 콘텐츠 초시계</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
